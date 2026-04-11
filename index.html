@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ukulele Tuner</title>
     <meta name="description" content="Free browser-based ukulele tuner. No app download or plugin needed — just allow microphone access and start playing." />
-    <meta name="theme-color" content="#0f1419" />
+    <meta name="theme-color" content="#0e1a30" />
     <meta property="og:title" content="Ukulele Tuner" />
     <meta property="og:description" content="Free browser-based ukulele tuner. No app download or plugin needed." />
     <meta property="og:type" content="website" />
@@ -13,15 +13,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500&family=Pacifico&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
     <div class="app">
       <header class="header">
-        <h1>Ukulele Tuner</h1>
-        <p class="subtitle">Tune your ukulele in the browser — no app or plugin needed.</p>
+        <div class="header-title-row">
+          <!-- Hibiscus flower -->
+          <svg class="hibiscus-icon" viewBox="0 0 48 48" width="38" height="38" aria-hidden="true">
+            <g transform="translate(24,24)">
+              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(0)"   opacity="0.95"/>
+              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(72)"  opacity="0.9"/>
+              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(144)" opacity="0.95"/>
+              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(216)" opacity="0.9"/>
+              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(288)" opacity="0.95"/>
+              <circle cx="0" cy="0" r="5.5" fill="#ffd166"/>
+              <line x1="0" y1="-2" x2="0" y2="-12" stroke="#fff8dc" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="0" cy="-13.5" r="2" fill="#fff8dc"/>
+            </g>
+          </svg>
+          <h1>Ukulele Tuner</h1>
+        </div>
+        <p class="subtitle">Aloha! Tune your ukulele right in the browser — no app or plugin needed.</p>
       </header>
 
       <section class="steps" aria-label="How to use">
@@ -99,6 +114,7 @@
             >View source on GitHub</a
           >
         </p>
+        <p class="footer-mahalo">Mahalo for tuning with us.</p>
       </footer>
     </div>
     <script type="module" src="app.js"></script>

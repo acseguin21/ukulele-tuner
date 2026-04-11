@@ -161,7 +161,7 @@ function setTuneDirection(cents) {
   const abs = Math.abs(rounded);
   if (abs <= 5) {
     el.tuneDirection.textContent =
-      "In tune! If the needle still wiggles, adjust only a hair or re-pluck to confirm.";
+      "Aloha — you're in tune! Re-pluck to confirm if the needle keeps wiggling.";
     el.tuneDirection.className = "tune-direction ok";
     return;
   }
