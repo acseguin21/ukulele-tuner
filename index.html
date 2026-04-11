@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ukulele Tuner</title>
+    <meta name="description" content="Free browser-based ukulele tuner. No app download or plugin needed — just allow microphone access and start playing." />
+    <meta name="theme-color" content="#0f1419" />
+    <meta property="og:title" content="Ukulele Tuner" />
+    <meta property="og:description" content="Free browser-based ukulele tuner. No app download or plugin needed." />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>Ukulele Tuner</h1>
+        <p class="subtitle">Tune your ukulele in the browser — no app or plugin needed.</p>
+      </header>
+
+      <section class="steps" aria-label="How to use">
+        <h2 class="steps-title">How to use</h2>
+        <ol class="steps-list">
+          <li>
+            <strong>Click "Start microphone"</strong> and choose <em>Allow</em> when your browser asks for permission.
+          </li>
+          <li>
+            <strong>Pick the string you are tuning</strong> — G, C, E, or A. The highlighted button shows the active
+            target pitch.
+          </li>
+          <li>
+            <strong>Pluck that string once</strong> and let it ring. The reading
+            <em>stays on screen for a few seconds</em> after the sound fades so you can adjust the peg without
+            re-plucking.
+          </li>
+          <li>
+            <strong>Follow the direction line</strong> under the meter — it tells you whether to tighten or loosen, and
+            by roughly how much.
+          </li>
+        </ol>
+      </section>
+
+      <section class="controls">
+        <button type="button" id="btn-mic" class="btn btn-primary" aria-pressed="false">
+          Start microphone
+        </button>
+        <label class="toggle">
+          <input type="checkbox" id="low-g" />
+          <span>Low G tuning (baritone / linear)</span>
+        </label>
+      </section>
+
+      <section class="strings" aria-label="Select string to tune">
+        <p class="strings-label">Which string are you tuning?</p>
+        <div class="string-buttons" id="string-buttons"></div>
+      </section>
+
+      <section class="meter-card" id="meter-card" aria-live="polite">
+        <div class="freq-row">
+          <span id="freq-display" class="freq mono">— Hz</span>
+          <span id="signal-hint" class="hint">Waiting for sound…</span>
+        </div>
+        <div class="note-block">
+          <span id="note-display" class="note">—</span>
+          <span id="cents-display" class="cents mono"></span>
+        </div>
+        <p id="tune-direction" class="tune-direction is-empty" aria-live="polite"></p>
+        <div class="needle-wrap" role="img" aria-label="Tuning meter">
+          <div class="needle-scale">
+            <span class="tick flat">♭</span>
+            <span class="tick center">|</span>
+            <span class="tick sharp">♯</span>
+          </div>
+          <div class="needle-track">
+            <div id="needle" class="needle"></div>
+          </div>
+        </div>
+        <p id="target-line" class="target-line mono"></p>
+      </section>
+
+      <footer class="footer">
+        <p class="footer-note">
+          If the microphone button does nothing, check your browser's site permissions and make sure your device's
+          microphone is not in use by another app. Works best in a quiet room with the instrument close to your
+          device's microphone.
+        </p>
+        <p class="footer-links">
+          <a
+            href="https://github.com/acseguin21/ukulele-tuner"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="footer-link"
+            >View source on GitHub</a
+          >
+        </p>
+      </footer>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

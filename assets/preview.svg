@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#1e3a35"/>
+      <stop offset="55%" stop-color="#0f1419"/>
+    </radialGradient>
+    <linearGradient id="btn" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3dd6c6"/>
+      <stop offset="100%" stop-color="#2a9d8f"/>
+    </linearGradient>
+    <linearGradient id="track" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#e76f51" stop-opacity="0.4"/>
+      <stop offset="50%"  stop-color="#3dd6c6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#2a9d8f" stop-opacity="0.4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-soft">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="420" fill="url(#bg)"/>
+
+  <!-- Left: Ukulele illustration -->
+  <!-- Body -->
+  <ellipse cx="148" cy="270" rx="62" ry="72" fill="#2a1a0a" stroke="#5a3a1a" stroke-width="2"/>
+  <ellipse cx="148" cy="270" rx="50" ry="60" fill="#3a2510" stroke="none"/>
+  <!-- Sound hole -->
+  <circle cx="148" cy="270" r="18" fill="none" stroke="#1a0e05" stroke-width="3"/>
+  <circle cx="148" cy="270" r="14" fill="#1a0e05"/>
+  <!-- Strings on body -->
+  <line x1="138" y1="216" x2="133" y2="335" stroke="#c8a870" stroke-width="1" opacity="0.7"/>
+  <line x1="143" y1="214" x2="140" y2="336" stroke="#c8a870" stroke-width="1" opacity="0.7"/>
+  <line x1="153" y1="214" x2="156" y2="336" stroke="#c8a870" stroke-width="1" opacity="0.7"/>
+  <line x1="158" y1="216" x2="163" y2="335" stroke="#c8a870" stroke-width="1" opacity="0.7"/>
+  <!-- Bridge -->
+  <rect x="133" y="318" width="30" height="7" rx="2" fill="#5a3a1a"/>
+  <!-- Neck -->
+  <rect x="140" y="130" width="16" height="90" rx="3" fill="#2a1a0a" stroke="#5a3a1a" stroke-width="1.5"/>
+  <!-- Frets -->
+  <line x1="140" y1="150" x2="156" y2="150" stroke="#8a6030" stroke-width="1.2"/>
+  <line x1="140" y1="165" x2="156" y2="165" stroke="#8a6030" stroke-width="1.2"/>
+  <line x1="140" y1="180" x2="156" y2="180" stroke="#8a6030" stroke-width="1.2"/>
+  <line x1="140" y1="195" x2="156" y2="195" stroke="#8a6030" stroke-width="1.2"/>
+  <line x1="140" y1="210" x2="156" y2="210" stroke="#8a6030" stroke-width="1.2"/>
+  <!-- Nut -->
+  <rect x="139" y="128" width="18" height="4" rx="1" fill="#d4b896"/>
+  <!-- Headstock -->
+  <rect x="137" y="90" width="22" height="42" rx="4" fill="#2a1a0a" stroke="#5a3a1a" stroke-width="1.5"/>
+  <!-- Tuning pegs -->
+  <circle cx="134" cy="100" r="5" fill="#7a5a30" stroke="#c8a870" stroke-width="1"/>
+  <circle cx="162" cy="100" r="5" fill="#7a5a30" stroke="#c8a870" stroke-width="1"/>
+  <circle cx="134" cy="116" r="5" fill="#7a5a30" stroke="#c8a870" stroke-width="1"/>
+  <circle cx="162" cy="116" r="5" fill="#7a5a30" stroke="#c8a870" stroke-width="1"/>
+  <!-- Peg shafts -->
+  <line x1="134" y1="100" x2="126" y2="100" stroke="#7a5a30" stroke-width="2"/>
+  <line x1="162" y1="100" x2="170" y2="100" stroke="#7a5a30" stroke-width="2"/>
+  <line x1="134" y1="116" x2="126" y2="116" stroke="#7a5a30" stroke-width="2"/>
+  <line x1="162" y1="116" x2="170" y2="116" stroke="#7a5a30" stroke-width="2"/>
+  <!-- Strings on neck -->
+  <line x1="143" y1="128" x2="141" y2="218" stroke="#c8a870" stroke-width="0.8" opacity="0.6"/>
+  <line x1="147" y1="128" x2="146" y2="218" stroke="#c8a870" stroke-width="0.8" opacity="0.6"/>
+  <line x1="151" y1="128" x2="152" y2="218" stroke="#c8a870" stroke-width="0.8" opacity="0.6"/>
+  <line x1="155" y1="128" x2="157" y2="218" stroke="#c8a870" stroke-width="0.8" opacity="0.6"/>
+
+  <!-- Divider line -->
+  <line x1="250" y1="60" x2="250" y2="380" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+  <!-- Right: App UI mockup -->
+  <!-- Title -->
+  <text x="290" y="100" font-family="system-ui, sans-serif" font-size="28" font-weight="700" fill="#e8eef4" letter-spacing="-0.5">Ukulele Tuner</text>
+  <text x="290" y="122" font-family="system-ui, sans-serif" font-size="13" fill="#8a9aa8">Tune your ukulele in the browser — no app or plugin needed.</text>
+
+  <!-- String buttons -->
+  <g transform="translate(290, 142)">
+    <!-- G button (active) -->
+    <rect x="0" y="0" width="96" height="52" rx="8" fill="rgba(61,214,198,0.12)" stroke="#3dd6c6" stroke-width="2"/>
+    <text x="48" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#e8eef4" text-anchor="middle">G</text>
+    <text x="48" y="42" font-family="'Courier New', monospace" font-size="11" fill="#8a9aa8" text-anchor="middle">392 Hz</text>
+    <!-- C button -->
+    <rect x="106" y="0" width="96" height="52" rx="8" fill="#1a222c" stroke="transparent" stroke-width="2"/>
+    <text x="154" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#e8eef4" text-anchor="middle">C</text>
+    <text x="154" y="42" font-family="'Courier New', monospace" font-size="11" fill="#8a9aa8" text-anchor="middle">262 Hz</text>
+    <!-- E button -->
+    <rect x="212" y="0" width="96" height="52" rx="8" fill="#1a222c" stroke="transparent" stroke-width="2"/>
+    <text x="260" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#e8eef4" text-anchor="middle">E</text>
+    <text x="260" y="42" font-family="'Courier New', monospace" font-size="11" fill="#8a9aa8" text-anchor="middle">330 Hz</text>
+    <!-- A button -->
+    <rect x="318" y="0" width="96" height="52" rx="8" fill="#1a222c" stroke="transparent" stroke-width="2"/>
+    <text x="366" y="24" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#e8eef4" text-anchor="middle">A</text>
+    <text x="366" y="42" font-family="'Courier New', monospace" font-size="11" fill="#8a9aa8" text-anchor="middle">440 Hz</text>
+  </g>
+
+  <!-- Meter card -->
+  <rect x="290" y="214" width="460" height="170" rx="14" fill="#1a222c" stroke="rgba(61,214,198,0.55)" stroke-width="1.5" filter="url(#glow-soft)"/>
+
+  <!-- Freq + hint row -->
+  <text x="308" y="242" font-family="'Courier New', monospace" font-size="14" fill="#8a9aa8">392.0 Hz</text>
+  <text x="690" y="242" font-family="system-ui, sans-serif" font-size="12" fill="#8a9aa8" text-anchor="end">Holding last reading…</text>
+
+  <!-- Note display -->
+  <text x="308" y="303" font-family="system-ui, sans-serif" font-size="64" font-weight="700" fill="#e8eef4" letter-spacing="-2" filter="url(#glow)">G4</text>
+  <text x="403" y="294" font-family="'Courier New', monospace" font-size="16" fill="#3dd6c6">in tune</text>
+
+  <!-- In-tune message -->
+  <text x="308" y="315" font-family="system-ui, sans-serif" font-size="13" fill="#3dd6c6">In tune! If the needle still wiggles, adjust only a hair.</text>
+
+  <!-- Needle scale -->
+  <text x="308" y="348" font-family="system-ui, sans-serif" font-size="13" fill="#8a9aa8">♭</text>
+  <text x="526" y="348" font-family="system-ui, sans-serif" font-size="13" fill="#3dd6c6" text-anchor="middle" font-weight="600">|</text>
+  <text x="742" y="348" font-family="system-ui, sans-serif" font-size="13" fill="#8a9aa8" text-anchor="end">♯</text>
+
+  <!-- Needle track -->
+  <rect x="308" y="352" width="434" height="9" rx="5" fill="url(#track)"/>
+  <!-- Needle (centered = in tune) -->
+  <rect x="521" y="347" width="10" height="20" rx="2" fill="#e8eef4" filter="url(#glow-soft)"/>
+
+  <!-- Target line -->
+  <text x="525" y="395" font-family="'Courier New', monospace" font-size="11" fill="#8a9aa8" text-anchor="middle">Target: G ≈ 392.00 Hz</text>
+</svg>
