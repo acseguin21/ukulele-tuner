@@ -18,7 +18,7 @@ A free, browser-based ukulele tuner. No app download, no plugin, no account — 
 
 ## How to use
 
-1. Open the [live demo](https://andreseguin.github.io/ukulele-tuner) (or run it locally — see below).
+1. Open the [live demo](https://acseguin21.github.io/ukulele-tuner) (or run it locally — see below).
 2. Click **Start microphone** and choose **Allow** when your browser asks for permission.
 3. Select the string you are tuning: **G**, **C**, **E**, or **A**.
 4. Pluck that string once and let it ring. The reading stays on screen for a few seconds after the sound fades.
@@ -44,15 +44,6 @@ npx serve .
 ```
 
 **Option 3 — VS Code:** install the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension and click **Go Live**.
-
-## Deploying to GitHub Pages
-
-1. Push the repo to GitHub.
-2. Go to **Settings → Pages**.
-3. Under **Source**, select the `main` branch and `/ (root)` folder.
-4. GitHub will publish the site at `https://acseguin21.github.io/ukulele-tuner`.
-
-Update the link in `index.html` and this README to match your actual GitHub username.
 
 ## How it works
 
