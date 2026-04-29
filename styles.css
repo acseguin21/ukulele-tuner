@@ -414,3 +414,485 @@ body {
   background-clip: text;
   opacity: 0.75;
 }
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid rgba(255, 200, 150, 0.12);
+  padding: 0.45rem 0 env(safe-area-inset-bottom, 0.45rem);
+  z-index: 100;
+  margin-top: 2rem;
+}
+
+.tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.22rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: color 0.15s ease;
+  font-family: inherit;
+}
+
+.tab-btn svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.tab-btn[aria-selected="true"] {
+  color: var(--accent);
+}
+
+/* ── Panel layout ────────────────────────────────────────────────────────── */
+
+.panel {
+  padding-bottom: 1rem;
+}
+
+.panel-title {
+  margin: 0 0 0.25rem;
+  font-family: "Pacifico", cursive;
+  font-size: 1.55rem;
+  font-weight: 400;
+  background: linear-gradient(125deg, #ff8c42 0%, #ff6b6b 55%, #ff4fa3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding-top: 1.5rem;
+}
+
+.panel-subtitle {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* ── Secondary button ────────────────────────────────────────────────────── */
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 200, 150, 0.18);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 200, 150, 0.38);
+}
+
+/* ── Chord practice ──────────────────────────────────────────────────────── */
+
+.chord-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.chord-chip {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.3rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+  font-size: 1rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  text-align: center;
+}
+
+.chord-chip:hover {
+  border-color: rgba(255, 140, 66, 0.45);
+  background: rgba(255, 140, 66, 0.08);
+}
+
+.chord-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(255, 107, 71, 0.15);
+}
+
+.chord-detail {
+  margin-top: 1.25rem;
+  padding: 1.1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 200, 150, 0.12);
+  border-radius: 0.85rem;
+}
+
+.chord-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.chord-detail-info {
+  flex: 1;
+}
+
+.chord-detail-name {
+  margin: 0 0 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.chord-detail-tones {
+  margin: 0 0 0.8rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.chord-practice-area {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 200, 150, 0.1);
+}
+
+.string-dots-row {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 0.85rem;
+}
+
+.string-dot-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.string-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.string-dot.active {
+  background: var(--warm);
+  border-color: var(--warm);
+  box-shadow: 0 0 8px rgba(255, 193, 59, 0.5);
+}
+
+.string-dot.pass {
+  background: var(--in-tune);
+  border-color: var(--in-tune);
+}
+
+.string-dot.fail {
+  background: var(--flat-color);
+  border-color: var(--flat-color);
+}
+
+.string-dot.muted {
+  background: rgba(255, 255, 255, 0.03);
+  border-style: dashed;
+}
+
+.practice-instruction {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin: 0 0 0.4rem;
+  min-height: 1.4em;
+}
+
+.practice-feedback {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+  min-height: 1.4em;
+}
+
+.practice-result {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.85rem;
+}
+
+.practice-result-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.practice-result-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Rhythm trainer ──────────────────────────────────────────────────────── */
+
+.rhythm-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rhythm-stat-block {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 200, 150, 0.1);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  text-align: center;
+}
+
+.rhythm-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--warm);
+  margin-bottom: 0.25rem;
+}
+
+.rhythm-stat {
+  display: block;
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+.beat-trail-canvas {
+  display: block;
+  width: 100%;
+  height: 48px;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 1.25rem;
+}
+
+.metronome-section {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 200, 150, 0.08);
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.section-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--warm);
+  opacity: 0.8;
+}
+
+.metronome-presets {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.preset-btn {
+  flex: 1;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.preset-btn:hover,
+.preset-btn.active {
+  background: rgba(255, 107, 71, 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.metronome-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.metronome-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.metronome-bpm-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  min-width: 4rem;
+  text-align: right;
+}
+
+.rhythm-hint {
+  text-align: center;
+}
+
+/* ── Record & review ─────────────────────────────────────────────────────── */
+
+.record-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.btn-record {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: linear-gradient(145deg, #ff4444, #cc2020);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 4px 22px rgba(255, 64, 64, 0.35);
+  border: none;
+}
+
+.btn-record:hover {
+  box-shadow: 0 6px 28px rgba(255, 64, 64, 0.5);
+}
+
+.btn-record[aria-pressed="true"] {
+  background: rgba(255, 64, 64, 0.12);
+  color: #ff4444;
+  box-shadow: inset 0 0 0 2px #ff4444;
+}
+
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.btn-record[aria-pressed="true"] .rec-dot {
+  animation: record-pulse 1s ease-in-out infinite;
+}
+
+@keyframes record-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.record-timer {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.waveform-canvas {
+  display: block;
+  width: 100%;
+  height: 72px;
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 0.85rem;
+}
+
+.playback-controls {
+  display: flex;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.record-save-link {
+  text-decoration: none;
+  text-align: center;
+}
+
+.analysis-card {
+  padding: 1rem 1.1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 200, 150, 0.12);
+  border-radius: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.analysis-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--warm);
+  opacity: 0.8;
+}
+
+.analysis-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.analysis-bar-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  width: 6rem;
+  flex-shrink: 0;
+}
+
+.analysis-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.analysis-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--flat-color), var(--warm), var(--in-tune));
+  transition: width 0.4s ease;
+}
+
+.analysis-bar-pct {
+  font-size: 0.8rem;
+  color: var(--text);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  width: 2.5rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.analysis-detail {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.record-hint {
+  text-align: center;
+}

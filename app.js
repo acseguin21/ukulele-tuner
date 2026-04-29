@@ -1,30 +1,29 @@
 /**
- * Ukulele tuner — mic → pitch detection (YIN algorithm) → note + cents vs selected string.
+ * Ukulele tuner — mic → YIN pitch detection → note + cents + educational tools.
  *
- * Uses the Web Audio API with a bandpass filter chain to reject background noise and
- * speech, followed by the YIN pitch detection algorithm which produces a clarity score
- * that makes it easy to distinguish periodic (musical) signals from aperiodic noise.
+ * Features:
+ *  • Tuner: YIN algorithm with bandpass filter chain and pitch-stability gating
+ *  • Chord Practice: string-by-string verification using monophonic pitch detection
+ *  • Rhythm Trainer: strum detection, BPM + consistency, optional metronome
+ *  • Record & Review: MediaRecorder capture + waveform + pitch variance analysis
  */
 
-const A4_HZ = 440;
-const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+import { CHORD_DATA, chordStringNotes, renderChordDiagram } from "./chord-data.js";
 
-function hzToMidi(hz) {
-  return 12 * Math.log2(hz / A4_HZ) + 69;
-}
+const A4_HZ     = 440;
+const NOTE_NAMES = ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
+
+function hzToMidi(hz) { return 12 * Math.log2(hz / A4_HZ) + 69; }
 
 function midiToNoteName(midi) {
-  const n = Math.round(midi);
+  const n    = Math.round(midi);
   const name = NOTE_NAMES[((n % 12) + 12) % 12];
-  const octave = Math.floor(n / 12) - 1;
-  return { name, octave, midi: n };
+  const oct  = Math.floor(n / 12) - 1;
+  return { name, octave: oct, midi: n };
 }
 
-function centsBetween(freq, targetHz) {
-  return 1200 * Math.log2(freq / targetHz);
-}
+function centsBetween(freq, targetHz) { return 1200 * Math.log2(freq / targetHz); }
 
-/** Standard ukulele: G4 C4 E4 A4 (high G). Low G uses G3. */
 function stringTargets(lowG) {
   return [
     { id: "g", label: "G", hz: lowG ? 196.0 : 392.0 },
@@ -34,21 +33,10 @@ function stringTargets(lowG) {
   ];
 }
 
-/**
- * YIN pitch detection algorithm (de Cheveigné & Kawahara, 2002).
- *
- * Computes the cumulative mean normalised difference function (CMND) and finds
- * the first lag whose value drops below an aperiodicity threshold. Returns a
- * clarity score (0–1): high values (~0.9+) indicate a clean periodic signal;
- * low values indicate noise or speech. Parabolic interpolation gives sub-sample
- * frequency accuracy.
- *
- * @param {Float32Array} buffer     - Raw PCM samples from AnalyserNode
- * @param {number}       sampleRate
- * @returns {{ hz: number|null, rms: number, clarity: number }}
- */
+// ── YIN pitch detection ───────────────────────────────────────────────────────
+
 function yinPitch(buffer, sampleRate) {
-  const n = buffer.length;
+  const n     = buffer.length;
   const halfN = Math.floor(n / 2);
 
   let rms = 0;
@@ -56,66 +44,54 @@ function yinPitch(buffer, sampleRate) {
   rms = Math.sqrt(rms / n);
   if (rms < 0.015) return { hz: null, rms, clarity: 0 };
 
-  // Limit search range to ukulele strings + small margin (Low G = 196 Hz).
-  const minHz = 170;
-  const maxHz = 1050;
-  const minLag = Math.max(2, Math.floor(sampleRate / maxHz));
-  const maxLag = Math.min(halfN - 1, Math.ceil(sampleRate / minHz));
+  const minHz   = 170;
+  const maxHz   = 1050;
+  const minLag  = Math.max(2, Math.floor(sampleRate / maxHz));
+  const maxLag  = Math.min(halfN - 1, Math.ceil(sampleRate / minHz));
 
-  // Step 1: difference function d(tau) = sum (x[i] - x[i+tau])^2
   const diff = new Float32Array(maxLag + 1);
   for (let tau = 1; tau <= maxLag; tau++) {
     for (let i = 0; i < halfN; i++) {
-      const delta = buffer[i] - buffer[i + tau];
-      diff[tau] += delta * delta;
+      const d = buffer[i] - buffer[i + tau];
+      diff[tau] += d * d;
     }
   }
 
-  // Step 2: cumulative mean normalised difference function
-  const cmnd = new Float32Array(maxLag + 1);
-  cmnd[0] = 1;
-  let runSum = 0;
+  const cmnd   = new Float32Array(maxLag + 1);
+  cmnd[0]      = 1;
+  let runSum   = 0;
   for (let tau = 1; tau <= maxLag; tau++) {
-    runSum += diff[tau];
-    cmnd[tau] = runSum > 0 ? (diff[tau] * tau) / runSum : 1;
+    runSum    += diff[tau];
+    cmnd[tau]  = runSum > 0 ? (diff[tau] * tau) / runSum : 1;
   }
 
-  // Step 3: first local minimum below aperiodicity threshold
-  const THRESHOLD = 0.12; // lower = stricter periodicity requirement
+  const THRESHOLD = 0.12;
   let bestLag = -1;
   for (let tau = minLag; tau < maxLag; tau++) {
-    if (cmnd[tau] < THRESHOLD && cmnd[tau] <= cmnd[tau + 1]) {
-      bestLag = tau;
-      break;
-    }
+    if (cmnd[tau] < THRESHOLD && cmnd[tau] <= cmnd[tau + 1]) { bestLag = tau; break; }
   }
 
-  // Fall back to the global minimum when threshold is not met
   if (bestLag < 0) {
     let minVal = Infinity;
     for (let tau = minLag; tau <= maxLag; tau++) {
       if (cmnd[tau] < minVal) { minVal = cmnd[tau]; bestLag = tau; }
     }
-    // Reject signals that are too aperiodic even at the minimum (likely noise/speech)
     if (minVal > 0.35) return { hz: null, rms, clarity: 1 - minVal };
   }
 
-  // Step 4: parabolic interpolation for sub-sample accuracy
-  const t = bestLag;
-  const y1 = t > minLag ? cmnd[t - 1] : cmnd[t];
-  const y2 = cmnd[t];
-  const y3 = t < maxLag ? cmnd[t + 1] : cmnd[t];
+  const t     = bestLag;
+  const y1    = t > minLag ? cmnd[t - 1] : cmnd[t];
+  const y2    = cmnd[t];
+  const y3    = t < maxLag ? cmnd[t + 1] : cmnd[t];
   const denom = y1 - 2 * y2 + y3;
   const delta = Math.abs(denom) > 1e-12 ? 0.5 * (y1 - y3) / denom : 0;
-  const hz = sampleRate / (t + delta);
-  const clarity = 1 - y2; // 1 = perfectly periodic, 0 = pure noise
-
-  return { hz, rms, clarity };
+  return { hz: sampleRate / (t + delta), rms, clarity: 1 - y2 };
 }
 
-// ── DOM refs ────────────────────────────────────────────────────────────────
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 
 const el = {
+  // Tuner
   btnMic:        document.getElementById("btn-mic"),
   lowG:          document.getElementById("low-g"),
   stringButtons: document.getElementById("string-buttons"),
@@ -127,47 +103,653 @@ const el = {
   needle:        document.getElementById("needle"),
   targetLine:    document.getElementById("target-line"),
   meterCard:     document.getElementById("meter-card"),
+  // Chord practice
+  chordGrid:     document.getElementById("chord-grid"),
+  chordDetail:   document.getElementById("chord-detail"),
+  // Rhythm
+  bpmDisplay:          document.getElementById("bpm-display"),
+  consistencyDisplay:  document.getElementById("consistency-display"),
+  beatTrail:           document.getElementById("beat-trail"),
+  metronomeToggle:     document.getElementById("metronome-toggle"),
+  metronomeSlider:     document.getElementById("metronome-slider"),
+  metronomeBpmLabel:   document.getElementById("metronome-bpm-label"),
+  rhythmHint:          document.getElementById("rhythm-hint"),
+  // Record
+  btnRecord:        document.getElementById("btn-record"),
+  recordTimer:      document.getElementById("record-timer"),
+  waveformCanvas:   document.getElementById("waveform-canvas"),
+  playbackControls: document.getElementById("playback-controls"),
+  playbackAudio:    document.getElementById("playback-audio"),
+  btnPlay:          document.getElementById("btn-play"),
+  btnSave:          document.getElementById("btn-save"),
+  analysisCard:     document.getElementById("analysis-card"),
+  recordHint:       document.getElementById("record-hint"),
 };
 
-// ── Audio state ─────────────────────────────────────────────────────────────
+// ── Audio state ───────────────────────────────────────────────────────────────
 
-let audioContext  = null;
-let mediaStream   = null;
-let analyser      = null;
-let dataBuffer    = null;
-let rafId         = null;
+let audioContext     = null;
+let mediaStream      = null;
+let analyser         = null;
+let dataBuffer       = null;
+let rafId            = null;
 let selectedStringId = "g";
 
-/** Last stable pitch while the string was ringing; shown for HOLD_MS after signal drops. */
-const HOLD_MS = 3200;
-let holdHz          = null;
-let lastSignalAt    = 0;
-let displayingHold  = false;
+const HOLD_MS        = 3200;
+let holdHz           = null;
+let lastSignalAt     = 0;
+let displayingHold   = false;
 
-/**
- * Require two consecutive frames with a stable pitch (within ±20 cents) before
- * accepting a reading. Prevents transient noise bursts or single-frame glitches
- * from triggering the display.
- */
 const STABILITY_FRAMES = 2;
 let pitchHistory = [];
 
-// ── UI helpers ──────────────────────────────────────────────────────────────
+// ── Tab navigation ────────────────────────────────────────────────────────────
+
+let activePanel = "panel-tuner";
+
+function switchTab(panelId) {
+  document.querySelectorAll(".panel").forEach(p => { p.hidden = p.id !== panelId; });
+  document.querySelectorAll(".tab-btn").forEach(b =>
+    b.setAttribute("aria-selected", b.dataset.panel === panelId ? "true" : "false"));
+  activePanel = panelId;
+  if (panelId === "panel-rhythm") {
+    sizeCanvas(el.beatTrail);
+    updateRhythmHint();
+  }
+  if (panelId === "panel-record") {
+    sizeCanvas(el.waveformCanvas);
+    updateRecordHint();
+  }
+}
+
+// ── Canvas sizing (DPR-aware) ─────────────────────────────────────────────────
+
+function sizeCanvas(canvas) {
+  const dpr  = window.devicePixelRatio || 1;
+  const cssW = canvas.offsetWidth;
+  const cssH = canvas.offsetHeight;
+  if (!cssW) return;
+  canvas.width  = cssW * dpr;
+  canvas.height = cssH * dpr;
+}
+
+// ── Chord practice ────────────────────────────────────────────────────────────
+
+let chordPractice = {
+  active:        false,
+  chordId:       null,
+  currentString: 0,
+  results:       [],   // { noteName, hz, detected, cents, pass }
+  advanceTimer:  null,
+};
+
+const STRING_LABELS = ["G", "C", "E", "A"];
+
+function renderChordPanel() {
+  el.chordGrid.innerHTML = "";
+  for (const chord of CHORD_DATA) {
+    const btn = document.createElement("button");
+    btn.type        = "button";
+    btn.className   = "chord-chip";
+    btn.dataset.id  = chord.id;
+    btn.setAttribute("aria-pressed", "false");
+    btn.textContent = chord.id;
+    btn.addEventListener("click", () => selectChord(chord.id));
+    el.chordGrid.appendChild(btn);
+  }
+}
+
+function selectChord(chordId) {
+  stopChordPractice();
+  // Toggle off if clicking same chord
+  const wasSelected = chordPractice.chordId === chordId && !el.chordDetail.hidden;
+  document.querySelectorAll(".chord-chip").forEach(b =>
+    b.setAttribute("aria-pressed", b.dataset.id === chordId && !wasSelected ? "true" : "false"));
+
+  if (wasSelected) {
+    el.chordDetail.hidden = true;
+    chordPractice.chordId = null;
+    return;
+  }
+
+  chordPractice.chordId = chordId;
+  const chord = CHORD_DATA.find(c => c.id === chordId);
+  renderChordDetail(chord);
+  el.chordDetail.hidden = false;
+}
+
+function renderChordDetail(chord) {
+  const svg = renderChordDiagram(chord, 130);
+  el.chordDetail.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "chord-detail-header";
+
+  const info = document.createElement("div");
+  info.className = "chord-detail-info";
+  info.innerHTML = `
+    <p class="chord-detail-name">${chord.name}</p>
+    <p class="chord-detail-tones">Notes: ${chord.tones.join(" · ")}</p>
+  `;
+
+  const startBtn = document.createElement("button");
+  startBtn.type      = "button";
+  startBtn.className = "btn btn-secondary";
+  startBtn.textContent = "▶ Practice";
+  startBtn.style.marginTop = "0.35rem";
+  startBtn.addEventListener("click", startChordPractice);
+
+  info.appendChild(startBtn);
+  header.appendChild(svg);
+  header.appendChild(info);
+  el.chordDetail.appendChild(header);
+
+  const practiceArea = document.createElement("div");
+  practiceArea.className = "chord-practice-area";
+  practiceArea.id        = "practice-area";
+  el.chordDetail.appendChild(practiceArea);
+}
+
+function startChordPractice() {
+  if (!audioContext) {
+    const area = document.getElementById("practice-area");
+    if (area) area.innerHTML = `<p class="hint" style="text-align:center">Start the microphone on the Tune tab first.</p>`;
+    return;
+  }
+  chordPractice.active        = true;
+  chordPractice.currentString = 0;
+  chordPractice.results       = [];
+  renderPracticeStatus();
+}
+
+function stopChordPractice() {
+  chordPractice.active = false;
+  clearTimeout(chordPractice.advanceTimer);
+}
+
+function advanceString() {
+  chordPractice.currentString++;
+  if (chordPractice.currentString >= 4) {
+    chordPractice.active = false;
+    showPracticeResult();
+  } else {
+    // Skip muted strings automatically
+    const notes = chordStringNotes(
+      CHORD_DATA.find(c => c.id === chordPractice.chordId),
+      el.lowG.checked
+    );
+    if (notes[chordPractice.currentString].muted) {
+      chordPractice.results[chordPractice.currentString] = { muted: true };
+      advanceString();
+    } else {
+      renderPracticeStatus();
+    }
+  }
+}
+
+function renderPracticeStatus() {
+  const area = document.getElementById("practice-area");
+  if (!area) return;
+  const chord  = CHORD_DATA.find(c => c.id === chordPractice.chordId);
+  const notes  = chordStringNotes(chord, el.lowG.checked);
+  const cur    = chordPractice.currentString;
+
+  const dotsHtml = STRING_LABELS.map((lbl, i) => {
+    const result = chordPractice.results[i];
+    let cls = "string-dot";
+    if (result?.muted) cls += " muted";
+    else if (result?.pass === true)  cls += " pass";
+    else if (result?.pass === false) cls += " fail";
+    else if (i === cur && chordPractice.active) cls += " active";
+    return `<div class="string-dot-wrap"><div class="${cls}"></div>${lbl}</div>`;
+  }).join("");
+
+  const target  = notes[cur];
+  const instrTxt = chordPractice.active && !target?.muted
+    ? `Pluck the <strong>${STRING_LABELS[cur]} string</strong>`
+    : "";
+  const expTxt = target && !target.muted
+    ? `Expected: ${target.noteName} (${target.hz.toFixed(1)} Hz)`
+    : "";
+
+  area.innerHTML = `
+    <div class="string-dots-row">${dotsHtml}</div>
+    <p class="practice-instruction">${instrTxt}</p>
+    <p class="practice-feedback">${expTxt}</p>
+    <button type="button" class="btn btn-secondary" id="stop-practice-btn" style="margin-top:0.6rem;font-size:0.82rem;padding:0.5rem 0.9rem">
+      Stop
+    </button>
+  `;
+  document.getElementById("stop-practice-btn")?.addEventListener("click", () => {
+    stopChordPractice();
+    area.innerHTML = "";
+  });
+}
+
+function updatePracticeFeedback(detected, cents, pass) {
+  const fb = document.querySelector(".practice-feedback");
+  if (!fb) return;
+  const chord = CHORD_DATA.find(c => c.id === chordPractice.chordId);
+  const notes = chordStringNotes(chord, el.lowG.checked);
+  const target = notes[chordPractice.currentString];
+  const sign = cents > 0 ? "sharp" : "flat";
+  fb.textContent = pass
+    ? `${target.noteName} ✓`
+    : `Detected ${detected} — ${Math.abs(Math.round(cents))}¢ ${sign}`;
+  fb.style.color = pass ? "var(--in-tune)" : "var(--flat-color)";
+}
+
+function showPracticeResult() {
+  const area = document.getElementById("practice-area");
+  if (!area) return;
+  const chord = CHORD_DATA.find(c => c.id === chordPractice.chordId);
+  const notes = chordStringNotes(chord, el.lowG.checked);
+  const passed = chordPractice.results.filter(r => r?.pass).length;
+  const total  = chordPractice.results.filter(r => !r?.muted).length;
+
+  const rows = STRING_LABELS.map((lbl, i) => {
+    const r = chordPractice.results[i];
+    if (!r || r.muted) return `<div class="practice-result-row"><span>${lbl}</span><span style="color:var(--muted)">muted</span></div>`;
+    const icon = r.pass ? "✓" : "✗";
+    const col  = r.pass ? "var(--in-tune)" : "var(--flat-color)";
+    const exp  = notes[i].noteName;
+    return `<div class="practice-result-row"><span>${lbl} — ${exp}</span><span style="color:${col}">${icon}</span></div>`;
+  }).join("");
+
+  area.innerHTML = `
+    <div class="practice-result">
+      <p style="margin:0 0 0.5rem;font-weight:700">${passed}/${total} strings in tune</p>
+      ${rows}
+    </div>
+    <button type="button" class="btn btn-secondary" id="retry-btn" style="margin-top:0.75rem;width:100%">
+      Try again
+    </button>
+  `;
+  document.getElementById("retry-btn")?.addEventListener("click", startChordPractice);
+}
+
+function chordFrame(hz, rms, clarity) {
+  if (!chordPractice.active || !chordPractice.chordId) return;
+  const chord  = CHORD_DATA.find(c => c.id === chordPractice.chordId);
+  const notes  = chordStringNotes(chord, el.lowG.checked);
+  const target = notes[chordPractice.currentString];
+
+  if (!target || target.muted) { advanceString(); return; }
+  if (!hz || clarity < 0.88 || rms < 0.015) return;
+
+  const cents = centsBetween(hz, target.hz);
+  const pass  = Math.abs(cents) <= 25;
+  const { name, octave } = midiToNoteName(hzToMidi(hz));
+  const detected = `${name}${octave}`;
+
+  chordPractice.results[chordPractice.currentString] = {
+    noteName: target.noteName, hz: target.hz, detected, cents, pass,
+  };
+
+  updatePracticeFeedback(detected, cents, pass);
+
+  // Update the active dot
+  const dots = document.querySelectorAll(".string-dot");
+  if (dots[chordPractice.currentString]) {
+    dots[chordPractice.currentString].className = `string-dot ${pass ? "pass" : "fail"}`;
+  }
+
+  if (pass) {
+    clearTimeout(chordPractice.advanceTimer);
+    chordPractice.advanceTimer = setTimeout(advanceString, 650);
+  }
+}
+
+// ── Rhythm trainer ────────────────────────────────────────────────────────────
+
+const ONSET_THRESHOLD   = 0.045;
+const RELEASE_THRESHOLD = 0.018;
+const MIN_STRUM_GAP_MS  = 150;
+
+let strumArmed       = true;
+let lastStrumAt      = 0;
+let strumTimestamps  = [];
+
+let metronomeCtx         = null;
+let metronomeBpm         = 80;
+let metronomeActive      = false;
+let metronomeIntervalId  = null;
+let metronomeNextBeat    = 0;
+
+function rhythmFrame(rms, now) {
+  detectStrum(rms, now);
+  drawBeatTrail(now);
+}
+
+function detectStrum(rms, now) {
+  if (strumArmed && rms >= ONSET_THRESHOLD) {
+    if (now - lastStrumAt > MIN_STRUM_GAP_MS) {
+      recordStrum(now);
+      lastStrumAt = now;
+    }
+    strumArmed = false;
+  } else if (!strumArmed && rms < RELEASE_THRESHOLD) {
+    strumArmed = true;
+  }
+}
+
+function recordStrum(now) {
+  strumTimestamps.push(now);
+  if (strumTimestamps.length > 16) strumTimestamps.shift();
+  updateRhythmUI();
+}
+
+function computeRhythmStats() {
+  if (strumTimestamps.length < 3) return { bpm: 0, consistencyPct: 0 };
+  const intervals = [];
+  for (let i = 1; i < strumTimestamps.length; i++)
+    intervals.push(strumTimestamps[i] - strumTimestamps[i - 1]);
+
+  const sorted = [...intervals].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const clean  = intervals.filter(iv => iv < median * 3 && iv > 50);
+  if (clean.length < 1) return { bpm: 0, consistencyPct: 0 };
+
+  const mean     = clean.reduce((s, v) => s + v, 0) / clean.length;
+  const variance = clean.reduce((s, v) => s + (v - mean) ** 2, 0) / clean.length;
+  const stddev   = Math.sqrt(variance);
+  const bpm      = Math.round(60000 / mean);
+  const cv       = stddev / mean;
+  const consistencyPct = Math.max(0, Math.round((1 - cv / 0.25) * 100));
+
+  return { bpm, consistencyPct };
+}
+
+function updateRhythmUI() {
+  const { bpm, consistencyPct } = computeRhythmStats();
+  el.bpmDisplay.textContent         = bpm > 0 ? bpm : "—";
+  el.consistencyDisplay.textContent = bpm > 0 ? `${consistencyPct}%` : "—";
+}
+
+function drawBeatTrail(now) {
+  const canvas = el.beatTrail;
+  if (!canvas.width) return;
+  const dpr  = window.devicePixelRatio || 1;
+  const W    = canvas.width / dpr;
+  const H    = canvas.height / dpr;
+  const ctx  = canvas.getContext("2d");
+  const WINDOW_MS = 4000;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const { consistencyPct } = computeRhythmStats();
+
+  for (const ts of strumTimestamps) {
+    const age    = now - ts;
+    if (age > WINDOW_MS) continue;
+    const x      = ((WINDOW_MS - age) / WINDOW_MS) * W;
+    const alpha  = 1 - age / WINDOW_MS;
+    // Colour by consistency: green if good, amber if poor
+    const colour = consistencyPct >= 70 ? `rgba(46,204,113,${alpha})` : `rgba(255,193,59,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, H / 2, 6, 0, Math.PI * 2);
+    ctx.fillStyle = colour;
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function updateRhythmHint() {
+  el.rhythmHint.hidden = !!audioContext;
+}
+
+function scheduleMetronomeClick(time) {
+  const osc  = metronomeCtx.createOscillator();
+  const gain = metronomeCtx.createGain();
+  osc.connect(gain);
+  gain.connect(metronomeCtx.destination);
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.3, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+  osc.start(time);
+  osc.stop(time + 0.05);
+}
+
+function metronomeScheduler() {
+  const lookahead = 0.1; // seconds
+  while (metronomeNextBeat < metronomeCtx.currentTime + lookahead) {
+    scheduleMetronomeClick(metronomeNextBeat);
+    metronomeNextBeat += 60 / metronomeBpm;
+  }
+}
+
+function startMetronome(bpm) {
+  metronomeBpm = bpm;
+  if (!metronomeCtx || metronomeCtx.state === "closed") {
+    metronomeCtx = new AudioContext();
+  } else if (metronomeCtx.state === "suspended") {
+    metronomeCtx.resume();
+  }
+  metronomeNextBeat   = metronomeCtx.currentTime + 0.05;
+  metronomeIntervalId = setInterval(metronomeScheduler, 25);
+  metronomeActive     = true;
+  el.metronomeToggle.textContent = "Stop metronome";
+  el.metronomeToggle.classList.add("btn-record");
+  el.metronomeToggle.classList.remove("btn-secondary");
+}
+
+function stopMetronome() {
+  clearInterval(metronomeIntervalId);
+  metronomeActive = false;
+  el.metronomeToggle.textContent = "Start metronome";
+  el.metronomeToggle.classList.remove("btn-record");
+  el.metronomeToggle.classList.add("btn-secondary");
+}
+
+// ── Recording ─────────────────────────────────────────────────────────────────
+
+let recMediaRecorder = null;
+let recChunks        = [];
+let recBlob          = null;
+let recObjectUrl     = null;
+let recIsRecording   = false;
+let recStartTime     = 0;
+let recPitchLog      = [];   // { t, hz }
+let recRmsLog        = [];   // { t, rms }
+let recLastLogTime   = 0;
+let recTimerInterval = null;
+let recStopTimeout   = null;
+
+function recordFrame(hz, rms, now) {
+  const elapsed = now - recStartTime;
+  if (elapsed - recLastLogTime >= 50) {
+    recPitchLog.push({ t: elapsed, hz: hz ?? null });
+    recRmsLog.push({ t: elapsed, rms });
+    recLastLogTime = elapsed;
+    drawWaveform();
+  }
+}
+
+async function startRecording() {
+  if (!mediaStream) {
+    await startMic();
+    if (!mediaStream) return;
+  }
+
+  recChunks      = [];
+  recPitchLog    = [];
+  recRmsLog      = [];
+  recLastLogTime = 0;
+  recStartTime   = performance.now();
+  recIsRecording = true;
+
+  const mimeType =
+    MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
+    MediaRecorder.isTypeSupported("audio/webm")             ? "audio/webm" :
+    MediaRecorder.isTypeSupported("audio/mp4")              ? "audio/mp4"  : "";
+
+  recMediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : {});
+  recMediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+  recMediaRecorder.onstop          = finalizeRecording;
+  recMediaRecorder.start(100);
+
+  recStopTimeout = setTimeout(stopRecording, 30000);
+  recTimerInterval = setInterval(updateRecordTimer, 250);
+
+  el.btnRecord.setAttribute("aria-pressed", "true");
+  el.btnRecord.querySelector(".rec-label").textContent = "Stop";
+  el.analysisCard.hidden    = true;
+  el.playbackControls.hidden = true;
+  el.recordHint.hidden      = true;
+}
+
+function stopRecording() {
+  if (!recIsRecording) return;
+  clearTimeout(recStopTimeout);
+  clearInterval(recTimerInterval);
+  recIsRecording = false;
+  recMediaRecorder?.stop();
+  el.btnRecord.setAttribute("aria-pressed", "false");
+  el.btnRecord.querySelector(".rec-label").textContent = "Record";
+  el.recordTimer.textContent = "0:00 / 0:30";
+}
+
+function finalizeRecording() {
+  const type   = recMediaRecorder?.mimeType || "audio/webm";
+  recBlob      = new Blob(recChunks, { type });
+  if (recObjectUrl) URL.revokeObjectURL(recObjectUrl);
+  recObjectUrl = URL.createObjectURL(recBlob);
+
+  el.playbackAudio.src        = recObjectUrl;
+  el.btnSave.href             = recObjectUrl;
+  el.btnSave.download         = type.includes("mp4") ? "uke-recording.mp4" : "uke-recording.webm";
+  el.playbackControls.hidden  = false;
+
+  drawWaveform();
+  renderAnalysis();
+  el.analysisCard.hidden = false;
+}
+
+function updateRecordTimer() {
+  const elapsed = performance.now() - recStartTime;
+  const secs    = Math.floor(elapsed / 1000);
+  const m       = Math.floor(secs / 60);
+  const s       = secs % 60;
+  el.recordTimer.textContent = `${m}:${s.toString().padStart(2, "0")} / 0:30`;
+}
+
+function drawWaveform(currentSec = null) {
+  const canvas = el.waveformCanvas;
+  if (!canvas.width || !recRmsLog.length) return;
+  const dpr  = window.devicePixelRatio || 1;
+  const W    = canvas.width / dpr;
+  const H    = canvas.height / dpr;
+  const ctx  = canvas.getContext("2d");
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const total = recRmsLog[recRmsLog.length - 1].t || 1;
+  const BAR_W = 2;
+
+  ctx.fillStyle = "rgba(255,107,71,0.55)";
+  for (const { t, rms } of recRmsLog) {
+    const x = (t / total) * W;
+    const h = Math.min(rms * 10, 1) * (H / 2);
+    ctx.fillRect(x - BAR_W / 2, H / 2 - h, BAR_W, h * 2);
+  }
+
+  if (currentSec !== null) {
+    const px = (currentSec * 1000 / total) * W;
+    ctx.strokeStyle = "#ffc13b";
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, H);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function analyzeRecording() {
+  const valid = recPitchLog.filter(p => p.hz !== null).map(p => p.hz);
+  if (valid.length < 4) return null;
+
+  const sorted = [...valid].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const cents  = valid.map(h => 1200 * Math.log2(h / median));
+  const mean   = cents.reduce((s, v) => s + v, 0) / cents.length;
+  const stddev = Math.sqrt(cents.reduce((s, v) => s + (v - mean) ** 2, 0) / cents.length);
+  const durationSec = (recRmsLog[recRmsLog.length - 1]?.t ?? 0) / 1000;
+
+  return { stddev, noteCount: valid.length, durationSec };
+}
+
+function renderAnalysis() {
+  const result = analyzeRecording();
+  el.analysisCard.innerHTML = "";
+
+  const title = document.createElement("p");
+  title.className   = "analysis-title";
+  title.textContent = "Analysis";
+  el.analysisCard.appendChild(title);
+
+  if (!result) {
+    const msg = document.createElement("p");
+    msg.className   = "analysis-detail";
+    msg.textContent = "No sustained notes detected — try playing for longer.";
+    el.analysisCard.appendChild(msg);
+    return;
+  }
+
+  const score = Math.max(0, Math.min(100, Math.round(100 - result.stddev * 2.5)));
+
+  const barRow = document.createElement("div");
+  barRow.className = "analysis-bar-row";
+  barRow.innerHTML = `
+    <span class="analysis-bar-label">Steadiness</span>
+    <div class="analysis-bar-track">
+      <div class="analysis-bar-fill" style="width:${score}%"></div>
+    </div>
+    <span class="analysis-bar-pct">${score}%</span>
+  `;
+  el.analysisCard.appendChild(barRow);
+
+  const detail = document.createElement("p");
+  detail.className = "analysis-detail";
+  const cents = Math.round(result.stddev);
+  if (result.stddev < 8) {
+    detail.textContent = `Pitch variance ~${cents}¢ — very steady. Great intonation!`;
+    detail.style.color = "var(--in-tune)";
+  } else if (result.stddev < 20) {
+    detail.textContent = `Pitch variance ~${cents}¢ — decent for a beginner. Work on sustaining even pressure behind the fret.`;
+    detail.style.color = "var(--warm)";
+  } else {
+    detail.textContent = `Pitch variance ~${cents}¢ — pitch wandered quite a bit. Try pressing firmly just behind the fret, not on top of it.`;
+    detail.style.color = "var(--flat-color)";
+  }
+  el.analysisCard.appendChild(detail);
+}
+
+function updateRecordHint() {
+  el.recordHint.hidden = !!audioContext;
+}
+
+// ── Tuner UI helpers ──────────────────────────────────────────────────────────
 
 function buildStringButtons() {
   el.stringButtons.innerHTML = "";
   for (const t of stringTargets(el.lowG.checked)) {
     const b = document.createElement("button");
-    b.type = "button";
+    b.type      = "button";
     b.className = "string-btn";
     b.dataset.id = t.id;
     b.setAttribute("aria-pressed", t.id === selectedStringId ? "true" : "false");
     b.innerHTML = `<span class="name">${t.label}</span><span class="hz">${Math.round(t.hz)} Hz</span>`;
     b.addEventListener("click", () => {
       selectedStringId = t.id;
-      for (const child of el.stringButtons.children) {
+      for (const child of el.stringButtons.children)
         child.setAttribute("aria-pressed", child.dataset.id === selectedStringId ? "true" : "false");
-      }
       updateTargetLine();
       if (holdHz != null) applyReading(holdHz, displayingHold);
     });
@@ -176,11 +758,11 @@ function buildStringButtons() {
 }
 
 function selectedTargetHz() {
-  return stringTargets(el.lowG.checked).find((x) => x.id === selectedStringId)?.hz ?? null;
+  return stringTargets(el.lowG.checked).find(x => x.id === selectedStringId)?.hz ?? null;
 }
 
 function updateTargetLine() {
-  const t = stringTargets(el.lowG.checked).find((x) => x.id === selectedStringId);
+  const t = stringTargets(el.lowG.checked).find(x => x.id === selectedStringId);
   if (t) el.targetLine.textContent = `Target: ${t.label} ≈ ${t.hz.toFixed(2)} Hz`;
 }
 
@@ -190,47 +772,41 @@ function setNeedleCents(cents) {
 
 function clearTuneDirection() {
   el.tuneDirection.textContent = "";
-  el.tuneDirection.className = "tune-direction is-empty";
+  el.tuneDirection.className   = "tune-direction is-empty";
 }
 
 function setTuneDirection(cents) {
   const rounded = Math.round(cents);
-  const abs = Math.abs(rounded);
+  const abs     = Math.abs(rounded);
   if (abs <= 5) {
-    el.tuneDirection.textContent =
-      "Aloha — you're in tune! Re-pluck to confirm if the needle keeps wiggling.";
-    el.tuneDirection.className = "tune-direction ok";
+    el.tuneDirection.textContent = "Aloha — you're in tune! Re-pluck to confirm if the needle keeps wiggling.";
+    el.tuneDirection.className   = "tune-direction ok";
     return;
   }
   if (rounded > 0) {
     el.tuneDirection.textContent = `Too sharp by ~${abs} cents — pitch is too high. Loosen the string until the needle moves toward centre.`;
-    el.tuneDirection.className = "tune-direction sharp";
+    el.tuneDirection.className   = "tune-direction sharp";
   } else {
     el.tuneDirection.textContent = `Too flat by ~${abs} cents — pitch is too low. Tighten the string until the needle moves toward centre.`;
-    el.tuneDirection.className = "tune-direction flat";
+    el.tuneDirection.className   = "tune-direction flat";
   }
 }
 
 function applyReading(hz, isHolding) {
-  displayingHold = isHolding;
-
-  el.freq.textContent = `${hz.toFixed(1)} Hz`;
-  el.hint.textContent = isHolding
-    ? "Holding last reading — pluck again for a fresh measurement."
-    : "";
+  displayingHold       = isHolding;
+  el.freq.textContent  = `${hz.toFixed(1)} Hz`;
+  el.hint.textContent  = isHolding ? "Holding last reading — pluck again for a fresh measurement." : "";
 
   const { name, octave } = midiToNoteName(hzToMidi(hz));
   el.note.textContent = `${name}${octave}`;
 
   const target = selectedTargetHz();
   let isInTune = false;
-
   if (target) {
-    const cents = centsBetween(hz, target);
+    const cents   = centsBetween(hz, target);
     const rounded = Math.round(cents);
-    const abs = Math.abs(rounded);
-    isInTune = abs <= 5;
-
+    const abs     = Math.abs(rounded);
+    isInTune      = abs <= 5;
     if (isInTune) {
       el.cents.textContent = "in tune";
       el.cents.classList.add("in-tune");
@@ -252,10 +828,10 @@ function applyReading(hz, isHolding) {
 }
 
 function showWaitingForPluck() {
-  displayingHold = false;
-  el.freq.textContent = "— Hz";
-  el.hint.textContent = "Pluck the selected string — listening…";
-  el.note.textContent = "—";
+  displayingHold       = false;
+  el.freq.textContent  = "— Hz";
+  el.hint.textContent  = "Pluck the selected string — listening…";
+  el.note.textContent  = "—";
   el.cents.textContent = "";
   el.cents.classList.remove("in-tune");
   clearTuneDirection();
@@ -263,32 +839,22 @@ function showWaitingForPluck() {
   el.meterCard.classList.remove("is-holding", "is-in-tune");
 }
 
-// ── Audio engine ─────────────────────────────────────────────────────────────
+// ── Audio engine ──────────────────────────────────────────────────────────────
 
-function tick() {
-  if (!analyser || !dataBuffer || !audioContext) return;
-
-  analyser.getFloatTimeDomainData(dataBuffer);
-  const { hz, rms, clarity } = yinPitch(dataBuffer, audioContext.sampleRate);
-  const now = performance.now();
-
-  // Require both a strong RMS signal and high periodicity (clarity).
-  // clarity >= 0.88 rejects most speech and broadband noise while accepting
-  // the clean, sustained tone of a plucked string.
+function tunerFrame(hz, rms, clarity, now) {
   const candidate = hz != null && rms >= 0.015 && clarity >= 0.88;
 
   if (candidate) {
-    // Accumulate pitch history and check stability across consecutive frames
     pitchHistory.push(hz);
     if (pitchHistory.length > STABILITY_FRAMES) pitchHistory.shift();
 
     const stable =
       pitchHistory.length >= STABILITY_FRAMES &&
-      pitchHistory.every((h) => Math.abs(1200 * Math.log2(h / hz)) <= 20);
+      pitchHistory.every(h => Math.abs(1200 * Math.log2(h / hz)) <= 20);
 
     if (stable) {
       lastSignalAt = now;
-      holdHz = hz;
+      holdHz       = hz;
       applyReading(hz, false);
     }
   } else {
@@ -300,14 +866,27 @@ function tick() {
       showWaitingForPluck();
     }
   }
+}
+
+function tick() {
+  if (!analyser || !dataBuffer || !audioContext) return;
+
+  analyser.getFloatTimeDomainData(dataBuffer);
+  const { hz, rms, clarity } = yinPitch(dataBuffer, audioContext.sampleRate);
+  const now = performance.now();
+
+  tunerFrame(hz, rms, clarity, now);
+  if (activePanel === "panel-rhythm") rhythmFrame(rms, now);
+  if (recIsRecording) recordFrame(hz, rms, now);
+  if (chordPractice.active) chordFrame(hz, rms, clarity);
 
   rafId = requestAnimationFrame(tick);
 }
 
 function stopMic() {
   if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-  mediaStream?.getTracks().forEach((tr) => tr.stop());
-  mediaStream = null;
+  mediaStream?.getTracks().forEach(tr => tr.stop());
+  mediaStream  = null;
   audioContext?.close().catch(() => {});
   audioContext  = null;
   analyser      = null;
@@ -319,9 +898,9 @@ function stopMic() {
 
   el.btnMic.textContent = "Start microphone";
   el.btnMic.setAttribute("aria-pressed", "false");
-  el.freq.textContent = "— Hz";
-  el.hint.textContent = "Mic off";
-  el.note.textContent = "—";
+  el.freq.textContent  = "— Hz";
+  el.hint.textContent  = "Mic off";
+  el.note.textContent  = "—";
   el.cents.textContent = "";
   el.cents.classList.remove("in-tune");
   clearTuneDirection();
@@ -331,7 +910,6 @@ function stopMic() {
 
 async function startMic() {
   try {
-    // Disable browser-side processing so the raw mic signal reaches the analyser.
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
@@ -340,47 +918,46 @@ async function startMic() {
     return;
   }
 
-  audioContext = new AudioContext();
-  const source = audioContext.createMediaStreamSource(mediaStream);
+  audioContext  = new AudioContext();
+  const source  = audioContext.createMediaStreamSource(mediaStream);
 
-  // Bandpass filter chain: highpass removes low rumble and the bulk of male
-  // speech fundamentals; lowpass removes high-frequency hiss and content the
-  // YIN algorithm doesn't need above ~1 kHz.
-  const hipass = audioContext.createBiquadFilter();
-  hipass.type = "highpass";
-  hipass.frequency.value = 150; // Hz — below Low G (196 Hz)
+  const hipass  = audioContext.createBiquadFilter();
+  hipass.type   = "highpass";
+  hipass.frequency.value = 150;
   hipass.Q.value = 0.7;
 
-  const lopass = audioContext.createBiquadFilter();
-  lopass.type = "lowpass";
-  lopass.frequency.value = 1100; // Hz — above A4 harmonics
+  const lopass  = audioContext.createBiquadFilter();
+  lopass.type   = "lowpass";
+  lopass.frequency.value = 1100;
   lopass.Q.value = 0.7;
 
-  analyser = audioContext.createAnalyser();
+  analyser      = audioContext.createAnalyser();
   analyser.fftSize = 4096;
-  analyser.smoothingTimeConstant = 0.15; // reduced for quicker response
+  analyser.smoothingTimeConstant = 0.15;
 
   source.connect(hipass);
   hipass.connect(lopass);
   lopass.connect(analyser);
   dataBuffer = new Float32Array(analyser.fftSize);
 
-  holdHz = null;
-  lastSignalAt = 0;
+  holdHz        = null;
+  lastSignalAt  = 0;
   displayingHold = false;
-  pitchHistory = [];
+  pitchHistory  = [];
 
   el.btnMic.textContent = "Stop microphone";
   el.btnMic.setAttribute("aria-pressed", "true");
-  el.hint.textContent = "Pluck the selected string — listening…";
+  el.hint.textContent   = "Pluck the selected string — listening…";
+
+  updateRhythmHint();
+  updateRecordHint();
   tick();
 }
 
-// ── Event listeners ──────────────────────────────────────────────────────────
+// ── Event listeners ───────────────────────────────────────────────────────────
 
 el.btnMic.addEventListener("click", () => {
-  if (audioContext) stopMic();
-  else startMic();
+  if (audioContext) stopMic(); else startMic();
 });
 
 el.lowG.addEventListener("change", () => {
@@ -389,9 +966,72 @@ el.lowG.addEventListener("change", () => {
   if (holdHz != null) applyReading(holdHz, displayingHold);
 });
 
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => switchTab(btn.dataset.panel));
+});
+
+// Metronome toggle
+el.metronomeToggle.addEventListener("click", () => {
+  if (metronomeActive) stopMetronome();
+  else startMetronome(metronomeBpm);
+});
+
+// Metronome slider
+el.metronomeSlider.addEventListener("input", () => {
+  metronomeBpm = Number(el.metronomeSlider.value);
+  el.metronomeBpmLabel.textContent = `${metronomeBpm} BPM`;
+  if (metronomeActive) {
+    // Restart with new tempo
+    clearInterval(metronomeIntervalId);
+    metronomeNextBeat   = metronomeCtx.currentTime + 0.05;
+    metronomeIntervalId = setInterval(metronomeScheduler, 25);
+  }
+});
+
+// Metronome preset buttons
+document.querySelectorAll(".preset-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    metronomeBpm = Number(btn.dataset.bpm);
+    el.metronomeSlider.value        = metronomeBpm;
+    el.metronomeBpmLabel.textContent = `${metronomeBpm} BPM`;
+    document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    if (metronomeActive) {
+      clearInterval(metronomeIntervalId);
+      metronomeNextBeat   = metronomeCtx.currentTime + 0.05;
+      metronomeIntervalId = setInterval(metronomeScheduler, 25);
+    }
+  });
+});
+
+// Record button
+el.btnRecord.addEventListener("click", () => {
+  if (recIsRecording) stopRecording(); else startRecording();
+});
+
+// Playback
+el.btnPlay.addEventListener("click", () => {
+  if (el.playbackAudio.paused) {
+    el.playbackAudio.play();
+    el.btnPlay.textContent = "⏸ Pause";
+  } else {
+    el.playbackAudio.pause();
+    el.btnPlay.textContent = "▶ Play";
+  }
+});
+
+el.playbackAudio.addEventListener("ended", () => {
+  el.btnPlay.textContent = "▶ Play";
+});
+
+el.playbackAudio.addEventListener("timeupdate", () => {
+  drawWaveform(el.playbackAudio.currentTime);
+});
+
 window.addEventListener("beforeunload", stopMic);
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
 
 buildStringButtons();
 updateTargetLine();
+renderChordPanel();

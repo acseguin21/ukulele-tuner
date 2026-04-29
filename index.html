@@ -19,103 +19,219 @@
   </head>
   <body>
     <div class="app">
-      <header class="header">
-        <div class="header-title-row">
-          <!-- Hibiscus flower -->
-          <svg class="hibiscus-icon" viewBox="0 0 48 48" width="38" height="38" aria-hidden="true">
-            <g transform="translate(24,24)">
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(0)"   opacity="0.95"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(72)"  opacity="0.9"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(144)" opacity="0.95"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(216)" opacity="0.9"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(288)" opacity="0.95"/>
-              <circle cx="0" cy="0" r="5.5" fill="#ffd166"/>
-              <line x1="0" y1="-2" x2="0" y2="-12" stroke="#fff8dc" stroke-width="1.8" stroke-linecap="round"/>
-              <circle cx="0" cy="-13.5" r="2" fill="#fff8dc"/>
-            </g>
+
+      <!-- ── Panel: Tuner ─────────────────────────────────────────────────── -->
+      <section class="panel" id="panel-tuner">
+        <header class="header">
+          <div class="header-title-row">
+            <!-- Hibiscus flower -->
+            <svg class="hibiscus-icon" viewBox="0 0 48 48" width="38" height="38" aria-hidden="true">
+              <g transform="translate(24,24)">
+                <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(0)"   opacity="0.95"/>
+                <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(72)"  opacity="0.9"/>
+                <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(144)" opacity="0.95"/>
+                <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(216)" opacity="0.9"/>
+                <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(288)" opacity="0.95"/>
+                <circle cx="0" cy="0" r="5.5" fill="#ffd166"/>
+                <line x1="0" y1="-2" x2="0" y2="-12" stroke="#fff8dc" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="0" cy="-13.5" r="2" fill="#fff8dc"/>
+              </g>
+            </svg>
+            <h1>Ukulele Tuner</h1>
+          </div>
+          <p class="subtitle">Aloha! Tune your ukulele right in the browser — no app or plugin needed.</p>
+        </header>
+
+        <section class="steps" aria-label="How to use">
+          <h2 class="steps-title">How to use</h2>
+          <ol class="steps-list">
+            <li>
+              <strong>Click "Start microphone"</strong> and choose <em>Allow</em> when your browser asks for permission.
+            </li>
+            <li>
+              <strong>Pick the string you are tuning</strong> — G, C, E, or A. The highlighted button shows the active
+              target pitch.
+            </li>
+            <li>
+              <strong>Pluck that string once</strong> and let it ring. The reading
+              <em>stays on screen for a few seconds</em> after the sound fades so you can adjust the peg without
+              re-plucking.
+            </li>
+            <li>
+              <strong>Follow the direction line</strong> under the meter — it tells you whether to tighten or loosen, and
+              by roughly how much.
+            </li>
+          </ol>
+        </section>
+
+        <section class="controls">
+          <button type="button" id="btn-mic" class="btn btn-primary" aria-pressed="false">
+            Start microphone
+          </button>
+          <label class="toggle">
+            <input type="checkbox" id="low-g" />
+            <span>Low G tuning (baritone / linear)</span>
+          </label>
+        </section>
+
+        <section class="strings" aria-label="Select string to tune">
+          <p class="strings-label">Which string are you tuning?</p>
+          <div class="string-buttons" id="string-buttons"></div>
+        </section>
+
+        <section class="meter-card" id="meter-card" aria-live="polite">
+          <div class="freq-row">
+            <span id="freq-display" class="freq mono">— Hz</span>
+            <span id="signal-hint" class="hint">Waiting for sound…</span>
+          </div>
+          <div class="note-block">
+            <span id="note-display" class="note">—</span>
+            <span id="cents-display" class="cents mono"></span>
+          </div>
+          <p id="tune-direction" class="tune-direction is-empty" aria-live="polite"></p>
+          <div class="needle-wrap" role="img" aria-label="Tuning meter">
+            <div class="needle-scale">
+              <span class="tick flat">♭</span>
+              <span class="tick center">|</span>
+              <span class="tick sharp">♯</span>
+            </div>
+            <div class="needle-track">
+              <div id="needle" class="needle"></div>
+            </div>
+          </div>
+          <p id="target-line" class="target-line mono"></p>
+        </section>
+
+        <footer class="footer">
+          <p class="footer-note">
+            If the microphone button does nothing, check your browser's site permissions and make sure your device's
+            microphone is not in use by another app. Works best in a quiet room with the instrument close to your
+            device's microphone.
+          </p>
+          <p class="footer-links">
+            <a
+              href="https://github.com/acseguin21/ukulele-tuner"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="footer-link"
+              >View source on GitHub</a
+            >
+          </p>
+          <p class="footer-mahalo">Mahalo for tuning with us.</p>
+        </footer>
+      </section>
+
+      <!-- ── Panel: Chords ────────────────────────────────────────────────── -->
+      <section class="panel" id="panel-chords" hidden>
+        <h2 class="panel-title">Chord Practice</h2>
+        <p class="panel-subtitle">Select a chord, then pluck each string to check your fingering.</p>
+        <div id="chord-grid" class="chord-grid"></div>
+        <div id="chord-detail" class="chord-detail" hidden></div>
+      </section>
+
+      <!-- ── Panel: Rhythm ────────────────────────────────────────────────── -->
+      <section class="panel" id="panel-rhythm" hidden>
+        <h2 class="panel-title">Rhythm Trainer</h2>
+        <p class="panel-subtitle">Strum steadily — the meter tracks your tempo and consistency.</p>
+
+        <div class="rhythm-stats-row">
+          <div class="rhythm-stat-block">
+            <span class="rhythm-label">BPM</span>
+            <span id="bpm-display" class="rhythm-stat mono">—</span>
+          </div>
+          <div class="rhythm-stat-block">
+            <span class="rhythm-label">Consistency</span>
+            <span id="consistency-display" class="rhythm-stat mono">—</span>
+          </div>
+        </div>
+
+        <canvas id="beat-trail" class="beat-trail-canvas" aria-label="Beat trail visualization"></canvas>
+
+        <div class="metronome-section">
+          <h3 class="section-label">Metronome</h3>
+          <div class="metronome-presets">
+            <button class="preset-btn" data-bpm="60" type="button">60</button>
+            <button class="preset-btn" data-bpm="80" type="button">80</button>
+            <button class="preset-btn" data-bpm="100" type="button">100</button>
+            <button class="preset-btn" data-bpm="120" type="button">120</button>
+          </div>
+          <div class="metronome-slider-row">
+            <input type="range" id="metronome-slider" min="40" max="200" value="80" />
+            <span id="metronome-bpm-label" class="mono metronome-bpm-label">80 BPM</span>
+          </div>
+          <button id="metronome-toggle" type="button" class="btn btn-secondary">
+            Start metronome
+          </button>
+        </div>
+
+        <p id="rhythm-hint" class="hint rhythm-hint">Start the microphone on the Tune tab, then strum!</p>
+      </section>
+
+      <!-- ── Panel: Record ────────────────────────────────────────────────── -->
+      <section class="panel" id="panel-record" hidden>
+        <h2 class="panel-title">Record &amp; Review</h2>
+        <p class="panel-subtitle">Record up to 30 seconds, then get feedback on your playing.</p>
+
+        <div class="record-controls">
+          <button type="button" id="btn-record" class="btn btn-record" aria-pressed="false">
+            <span class="rec-dot"></span>
+            <span class="rec-label">Record</span>
+          </button>
+          <span id="record-timer" class="mono record-timer">0:00 / 0:30</span>
+        </div>
+
+        <canvas id="waveform-canvas" class="waveform-canvas" aria-label="Recording waveform"></canvas>
+
+        <div id="playback-controls" class="playback-controls" hidden>
+          <audio id="playback-audio"></audio>
+          <button type="button" id="btn-play" class="btn btn-secondary">&#9654; Play</button>
+          <a id="btn-save" class="btn btn-secondary record-save-link" download="uke-recording.webm">&#11015; Save</a>
+        </div>
+
+        <div id="analysis-card" class="analysis-card" hidden></div>
+
+        <p id="record-hint" class="hint record-hint">Start the microphone on the Tune tab first.</p>
+      </section>
+
+      <!-- ── Tab bar ──────────────────────────────────────────────────────── -->
+      <nav class="tab-bar" aria-label="Main navigation">
+        <button class="tab-btn" data-panel="panel-tuner" aria-selected="true" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="2" width="6" height="11" rx="3"/>
+            <path d="M5 10a7 7 0 0 0 14 0"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+            <line x1="8"  y1="21" x2="16" y2="21"/>
           </svg>
-          <h1>Ukulele Tuner</h1>
-        </div>
-        <p class="subtitle">Aloha! Tune your ukulele right in the browser — no app or plugin needed.</p>
-      </header>
-
-      <section class="steps" aria-label="How to use">
-        <h2 class="steps-title">How to use</h2>
-        <ol class="steps-list">
-          <li>
-            <strong>Click "Start microphone"</strong> and choose <em>Allow</em> when your browser asks for permission.
-          </li>
-          <li>
-            <strong>Pick the string you are tuning</strong> — G, C, E, or A. The highlighted button shows the active
-            target pitch.
-          </li>
-          <li>
-            <strong>Pluck that string once</strong> and let it ring. The reading
-            <em>stays on screen for a few seconds</em> after the sound fades so you can adjust the peg without
-            re-plucking.
-          </li>
-          <li>
-            <strong>Follow the direction line</strong> under the meter — it tells you whether to tighten or loosen, and
-            by roughly how much.
-          </li>
-        </ol>
-      </section>
-
-      <section class="controls">
-        <button type="button" id="btn-mic" class="btn btn-primary" aria-pressed="false">
-          Start microphone
+          Tune
         </button>
-        <label class="toggle">
-          <input type="checkbox" id="low-g" />
-          <span>Low G tuning (baritone / linear)</span>
-        </label>
-      </section>
+        <button class="tab-btn" data-panel="panel-chords" aria-selected="false" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="6"  y1="3" x2="6"  y2="21"/>
+            <line x1="10" y1="3" x2="10" y2="21"/>
+            <line x1="14" y1="3" x2="14" y2="21"/>
+            <line x1="18" y1="3" x2="18" y2="21"/>
+            <line x1="4"  y1="8"  x2="20" y2="8"/>
+            <line x1="4"  y1="14" x2="20" y2="14"/>
+            <circle cx="10" cy="8"  r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="18" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+          </svg>
+          Chords
+        </button>
+        <button class="tab-btn" data-panel="panel-rhythm" aria-selected="false" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="2,12 5,12 7,4 9,20 11,12 13,12 15,8 17,16 19,12 22,12"/>
+          </svg>
+          Rhythm
+        </button>
+        <button class="tab-btn" data-panel="panel-record" aria-selected="false" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>
+          </svg>
+          Record
+        </button>
+      </nav>
 
-      <section class="strings" aria-label="Select string to tune">
-        <p class="strings-label">Which string are you tuning?</p>
-        <div class="string-buttons" id="string-buttons"></div>
-      </section>
-
-      <section class="meter-card" id="meter-card" aria-live="polite">
-        <div class="freq-row">
-          <span id="freq-display" class="freq mono">— Hz</span>
-          <span id="signal-hint" class="hint">Waiting for sound…</span>
-        </div>
-        <div class="note-block">
-          <span id="note-display" class="note">—</span>
-          <span id="cents-display" class="cents mono"></span>
-        </div>
-        <p id="tune-direction" class="tune-direction is-empty" aria-live="polite"></p>
-        <div class="needle-wrap" role="img" aria-label="Tuning meter">
-          <div class="needle-scale">
-            <span class="tick flat">♭</span>
-            <span class="tick center">|</span>
-            <span class="tick sharp">♯</span>
-          </div>
-          <div class="needle-track">
-            <div id="needle" class="needle"></div>
-          </div>
-        </div>
-        <p id="target-line" class="target-line mono"></p>
-      </section>
-
-      <footer class="footer">
-        <p class="footer-note">
-          If the microphone button does nothing, check your browser's site permissions and make sure your device's
-          microphone is not in use by another app. Works best in a quiet room with the instrument close to your
-          device's microphone.
-        </p>
-        <p class="footer-links">
-          <a
-            href="https://github.com/acseguin21/ukulele-tuner"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="footer-link"
-            >View source on GitHub</a
-          >
-        </p>
-        <p class="footer-mahalo">Mahalo for tuning with us.</p>
-      </footer>
     </div>
     <script type="module" src="app.js"></script>
   </body>
