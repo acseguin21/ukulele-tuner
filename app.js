@@ -185,17 +185,41 @@ let chordPractice = {
 
 const STRING_LABELS = ["G", "C", "E", "A"];
 
+const CHORD_CATEGORIES = [
+  { key: "essential", label: "Essential" },
+  { key: "minor",     label: "Minor" },
+  { key: "seventh",   label: "7th Chords" },
+];
+
 function renderChordPanel() {
   el.chordGrid.innerHTML = "";
-  for (const chord of CHORD_DATA) {
-    const btn = document.createElement("button");
-    btn.type        = "button";
-    btn.className   = "chord-chip";
-    btn.dataset.id  = chord.id;
-    btn.setAttribute("aria-pressed", "false");
-    btn.textContent = chord.id;
-    btn.addEventListener("click", () => selectChord(chord.id));
-    el.chordGrid.appendChild(btn);
+  for (const { key, label } of CHORD_CATEGORIES) {
+    const chords = CHORD_DATA.filter(c => c.category === key);
+    if (!chords.length) continue;
+
+    const section = document.createElement("div");
+    section.className = "chord-section";
+
+    const heading = document.createElement("p");
+    heading.className   = "chord-section-label";
+    heading.textContent = label;
+    section.appendChild(heading);
+
+    const grid = document.createElement("div");
+    grid.className = "chord-section-grid";
+    for (const chord of chords) {
+      const btn = document.createElement("button");
+      btn.type        = "button";
+      btn.className   = "chord-chip";
+      btn.dataset.id  = chord.id;
+      btn.setAttribute("aria-pressed", "false");
+      btn.textContent = chord.id;
+      btn.addEventListener("click", () => selectChord(chord.id));
+      grid.appendChild(btn);
+    }
+
+    section.appendChild(grid);
+    el.chordGrid.appendChild(section);
   }
 }
 
