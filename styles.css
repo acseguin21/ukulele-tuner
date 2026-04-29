@@ -366,6 +366,38 @@ body {
   transition: left 0.08s ease-out;
 }
 
+.needle-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.needle-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.needle-legend-item dt {
+  font-size: 1rem;
+  font-weight: 700;
+  width: 1.4rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.needle-legend-item dd {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.needle-legend-symbol.flat-color  { color: var(--flat-color); }
+.needle-legend-symbol.in-tune     { color: var(--in-tune); }
+.needle-legend-symbol.sharp-color { color: var(--sharp-color); }
+
 .target-line {
   margin: 1rem 0 0;
   font-size: 0.82rem;
@@ -506,6 +538,37 @@ body {
 }
 
 /* ── Chord practice ──────────────────────────────────────────────────────── */
+
+.chord-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 1.1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 200, 150, 0.1);
+  border-radius: 0.65rem;
+}
+
+.chord-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.chord-legend-item dt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.chord-legend-item dd {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
 
 .chord-grid {
   display: flex;
