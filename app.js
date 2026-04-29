@@ -1,8 +1,9 @@
 /**
- * Ukulele tuner — mic → pitch detection (autocorrelation) → note + cents vs selected string.
+ * Ukulele tuner — mic → pitch detection (YIN algorithm) → note + cents vs selected string.
  *
- * Uses the Web Audio API (AnalyserNode) and a time-domain autocorrelation algorithm
- * with parabolic interpolation for sub-sample accuracy.
+ * Uses the Web Audio API with a bandpass filter chain to reject background noise and
+ * speech, followed by the YIN pitch detection algorithm which produces a clarity score
+ * that makes it easy to distinguish periodic (musical) signals from aperiodic noise.
  */
 
 const A4_HZ = 440;
@@ -34,54 +35,82 @@ function stringTargets(lowG) {
 }
 
 /**
- * Estimates the fundamental frequency of a signal via normalised autocorrelation
- * with parabolic interpolation around the best peak.
+ * YIN pitch detection algorithm (de Cheveigné & Kawahara, 2002).
  *
- * @param {Float32Array} buffer  - Raw PCM samples from AnalyserNode
+ * Computes the cumulative mean normalised difference function (CMND) and finds
+ * the first lag whose value drops below an aperiodicity threshold. Returns a
+ * clarity score (0–1): high values (~0.9+) indicate a clean periodic signal;
+ * low values indicate noise or speech. Parabolic interpolation gives sub-sample
+ * frequency accuracy.
+ *
+ * @param {Float32Array} buffer     - Raw PCM samples from AnalyserNode
  * @param {number}       sampleRate
- * @returns {{ hz: number|null, rms: number }}
+ * @returns {{ hz: number|null, rms: number, clarity: number }}
  */
-function autocorrelatePitch(buffer, sampleRate) {
+function yinPitch(buffer, sampleRate) {
   const n = buffer.length;
+  const halfN = Math.floor(n / 2);
 
   let rms = 0;
   for (let i = 0; i < n; i++) rms += buffer[i] * buffer[i];
   rms = Math.sqrt(rms / n);
-  if (rms < 0.01) return { hz: null, rms };
+  if (rms < 0.015) return { hz: null, rms, clarity: 0 };
 
-  const minHz = 70;
-  const maxHz = 1200;
-  let minPeriod = Math.max(2, Math.floor(sampleRate / maxHz));
-  let maxPeriod = Math.min(Math.floor(n / 2), Math.ceil(sampleRate / minHz));
+  // Limit search range to ukulele strings + small margin (Low G = 196 Hz).
+  const minHz = 170;
+  const maxHz = 1050;
+  const minLag = Math.max(2, Math.floor(sampleRate / maxHz));
+  const maxLag = Math.min(halfN - 1, Math.ceil(sampleRate / minHz));
 
-  let bestOffset = -1;
-  let bestCorr = 0;
-  for (let period = minPeriod; period <= maxPeriod; period++) {
-    let corr = 0;
-    for (let i = 0; i < n - period; i++) corr += buffer[i] * buffer[i + period];
-    if (corr > bestCorr) {
-      bestCorr = corr;
-      bestOffset = period;
+  // Step 1: difference function d(tau) = sum (x[i] - x[i+tau])^2
+  const diff = new Float32Array(maxLag + 1);
+  for (let tau = 1; tau <= maxLag; tau++) {
+    for (let i = 0; i < halfN; i++) {
+      const delta = buffer[i] - buffer[i + tau];
+      diff[tau] += delta * delta;
     }
   }
 
-  if (bestOffset <= 0 || bestCorr < 1e-6) return { hz: null, rms };
+  // Step 2: cumulative mean normalised difference function
+  const cmnd = new Float32Array(maxLag + 1);
+  cmnd[0] = 1;
+  let runSum = 0;
+  for (let tau = 1; tau <= maxLag; tau++) {
+    runSum += diff[tau];
+    cmnd[tau] = runSum > 0 ? (diff[tau] * tau) / runSum : 1;
+  }
 
-  // Parabolic interpolation for sub-sample refinement
-  const p = bestOffset;
-  const computeCorr = (lag) => {
-    let c = 0;
-    for (let i = 0; i < n - lag; i++) c += buffer[i] * buffer[i + lag];
-    return c;
-  };
-  const y1 = p > minPeriod ? computeCorr(p - 1) : bestCorr;
-  const y2 = bestCorr;
-  const y3 = p < maxPeriod ? computeCorr(p + 1) : bestCorr;
+  // Step 3: first local minimum below aperiodicity threshold
+  const THRESHOLD = 0.12; // lower = stricter periodicity requirement
+  let bestLag = -1;
+  for (let tau = minLag; tau < maxLag; tau++) {
+    if (cmnd[tau] < THRESHOLD && cmnd[tau] <= cmnd[tau + 1]) {
+      bestLag = tau;
+      break;
+    }
+  }
+
+  // Fall back to the global minimum when threshold is not met
+  if (bestLag < 0) {
+    let minVal = Infinity;
+    for (let tau = minLag; tau <= maxLag; tau++) {
+      if (cmnd[tau] < minVal) { minVal = cmnd[tau]; bestLag = tau; }
+    }
+    // Reject signals that are too aperiodic even at the minimum (likely noise/speech)
+    if (minVal > 0.35) return { hz: null, rms, clarity: 1 - minVal };
+  }
+
+  // Step 4: parabolic interpolation for sub-sample accuracy
+  const t = bestLag;
+  const y1 = t > minLag ? cmnd[t - 1] : cmnd[t];
+  const y2 = cmnd[t];
+  const y3 = t < maxLag ? cmnd[t + 1] : cmnd[t];
   const denom = y1 - 2 * y2 + y3;
   const delta = Math.abs(denom) > 1e-12 ? 0.5 * (y1 - y3) / denom : 0;
-  const hz = sampleRate / (p + delta);
+  const hz = sampleRate / (t + delta);
+  const clarity = 1 - y2; // 1 = perfectly periodic, 0 = pure noise
 
-  return { hz, rms };
+  return { hz, rms, clarity };
 }
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
@@ -114,6 +143,14 @@ const HOLD_MS = 3200;
 let holdHz          = null;
 let lastSignalAt    = 0;
 let displayingHold  = false;
+
+/**
+ * Require two consecutive frames with a stable pitch (within ±20 cents) before
+ * accepting a reading. Prevents transient noise bursts or single-frame glitches
+ * from triggering the display.
+ */
+const STABILITY_FRAMES = 2;
+let pitchHistory = [];
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 
@@ -232,19 +269,36 @@ function tick() {
   if (!analyser || !dataBuffer || !audioContext) return;
 
   analyser.getFloatTimeDomainData(dataBuffer);
-  const { hz, rms } = autocorrelatePitch(dataBuffer, audioContext.sampleRate);
+  const { hz, rms, clarity } = yinPitch(dataBuffer, audioContext.sampleRate);
   const now = performance.now();
-  const live = hz != null && rms >= 0.008;
 
-  if (live) {
-    lastSignalAt = now;
-    holdHz = hz;
-    applyReading(hz, false);
-  } else if (holdHz != null && now - lastSignalAt < HOLD_MS) {
-    applyReading(holdHz, true);
+  // Require both a strong RMS signal and high periodicity (clarity).
+  // clarity >= 0.88 rejects most speech and broadband noise while accepting
+  // the clean, sustained tone of a plucked string.
+  const candidate = hz != null && rms >= 0.015 && clarity >= 0.88;
+
+  if (candidate) {
+    // Accumulate pitch history and check stability across consecutive frames
+    pitchHistory.push(hz);
+    if (pitchHistory.length > STABILITY_FRAMES) pitchHistory.shift();
+
+    const stable =
+      pitchHistory.length >= STABILITY_FRAMES &&
+      pitchHistory.every((h) => Math.abs(1200 * Math.log2(h / hz)) <= 20);
+
+    if (stable) {
+      lastSignalAt = now;
+      holdHz = hz;
+      applyReading(hz, false);
+    }
   } else {
-    holdHz = null;
-    showWaitingForPluck();
+    pitchHistory = [];
+    if (holdHz != null && now - lastSignalAt < HOLD_MS) {
+      applyReading(holdHz, true);
+    } else {
+      holdHz = null;
+      showWaitingForPluck();
+    }
   }
 
   rafId = requestAnimationFrame(tick);
@@ -261,6 +315,7 @@ function stopMic() {
   holdHz        = null;
   lastSignalAt  = 0;
   displayingHold = false;
+  pitchHistory  = [];
 
   el.btnMic.textContent = "Start microphone";
   el.btnMic.setAttribute("aria-pressed", "false");
@@ -276,6 +331,7 @@ function stopMic() {
 
 async function startMic() {
   try {
+    // Disable browser-side processing so the raw mic signal reaches the analyser.
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
@@ -286,15 +342,33 @@ async function startMic() {
 
   audioContext = new AudioContext();
   const source = audioContext.createMediaStreamSource(mediaStream);
+
+  // Bandpass filter chain: highpass removes low rumble and the bulk of male
+  // speech fundamentals; lowpass removes high-frequency hiss and content the
+  // YIN algorithm doesn't need above ~1 kHz.
+  const hipass = audioContext.createBiquadFilter();
+  hipass.type = "highpass";
+  hipass.frequency.value = 150; // Hz — below Low G (196 Hz)
+  hipass.Q.value = 0.7;
+
+  const lopass = audioContext.createBiquadFilter();
+  lopass.type = "lowpass";
+  lopass.frequency.value = 1100; // Hz — above A4 harmonics
+  lopass.Q.value = 0.7;
+
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 4096;
-  analyser.smoothingTimeConstant = 0.3;
-  source.connect(analyser);
+  analyser.smoothingTimeConstant = 0.15; // reduced for quicker response
+
+  source.connect(hipass);
+  hipass.connect(lopass);
+  lopass.connect(analyser);
   dataBuffer = new Float32Array(analyser.fftSize);
 
   holdHz = null;
   lastSignalAt = 0;
   displayingHold = false;
+  pitchHistory = [];
 
   el.btnMic.textContent = "Stop microphone";
   el.btnMic.setAttribute("aria-pressed", "true");
