@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ukulele Tuner</title>
     <meta name="description" content="Free browser-based ukulele tuner. No app download or plugin needed — just allow microphone access and start playing." />
-    <meta name="theme-color" content="#0e1a30" />
+    <meta name="theme-color" content="#00bcd4" />
     <meta property="og:title" content="Ukulele Tuner" />
     <meta property="og:description" content="Free browser-based ukulele tuner. No app download or plugin needed." />
     <meta property="og:type" content="website" />
@@ -18,26 +18,74 @@
     />
   </head>
   <body>
+
+    <!-- Decorative background hibiscus flowers -->
+    <svg class="deco deco-tl" viewBox="0 0 160 160" aria-hidden="true">
+      <g transform="translate(80,80)">
+        <ellipse cx="0" cy="-44" rx="20" ry="32" fill="#ff3d6b" transform="rotate(0)"   opacity="1"/>
+        <ellipse cx="0" cy="-44" rx="20" ry="32" fill="#ff7043" transform="rotate(72)"  opacity="1"/>
+        <ellipse cx="0" cy="-44" rx="20" ry="32" fill="#ff1744" transform="rotate(144)" opacity="1"/>
+        <ellipse cx="0" cy="-44" rx="20" ry="32" fill="#ff7043" transform="rotate(216)" opacity="1"/>
+        <ellipse cx="0" cy="-44" rx="20" ry="32" fill="#ff3d6b" transform="rotate(288)" opacity="1"/>
+        <circle cx="0" cy="0" r="17" fill="#ffd740"/>
+        <line x1="0" y1="-4" x2="0" y2="-32" stroke="#fffde7" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="0" cy="-36" r="4.5" fill="#fffde7"/>
+      </g>
+    </svg>
+
+    <svg class="deco deco-tr" viewBox="0 0 120 120" aria-hidden="true">
+      <g transform="translate(60,60)">
+        <ellipse cx="0" cy="-34" rx="15" ry="24" fill="#00bcd4" transform="rotate(0)"   opacity="1"/>
+        <ellipse cx="0" cy="-34" rx="15" ry="24" fill="#00acc1" transform="rotate(72)"  opacity="1"/>
+        <ellipse cx="0" cy="-34" rx="15" ry="24" fill="#00bcd4" transform="rotate(144)" opacity="1"/>
+        <ellipse cx="0" cy="-34" rx="15" ry="24" fill="#0097a7" transform="rotate(216)" opacity="1"/>
+        <ellipse cx="0" cy="-34" rx="15" ry="24" fill="#00bcd4" transform="rotate(288)" opacity="1"/>
+        <circle cx="0" cy="0" r="13" fill="#ffd740"/>
+        <line x1="0" y1="-3" x2="0" y2="-24" stroke="#fffde7" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="0" cy="-27" r="3.5" fill="#fffde7"/>
+      </g>
+    </svg>
+
+    <svg class="deco deco-br" viewBox="0 0 140 140" aria-hidden="true">
+      <g transform="translate(70,70)">
+        <ellipse cx="0" cy="-38" rx="17" ry="28" fill="#ff9800" transform="rotate(0)"   opacity="1"/>
+        <ellipse cx="0" cy="-38" rx="17" ry="28" fill="#ff3d6b" transform="rotate(72)"  opacity="1"/>
+        <ellipse cx="0" cy="-38" rx="17" ry="28" fill="#ff9800" transform="rotate(144)" opacity="1"/>
+        <ellipse cx="0" cy="-38" rx="17" ry="28" fill="#ff3d6b" transform="rotate(216)" opacity="1"/>
+        <ellipse cx="0" cy="-38" rx="17" ry="28" fill="#ff9800" transform="rotate(288)" opacity="1"/>
+        <circle cx="0" cy="0" r="15" fill="#ffd740"/>
+        <line x1="0" y1="-3" x2="0" y2="-28" stroke="#fffde7" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="0" cy="-31" r="4" fill="#fffde7"/>
+      </g>
+    </svg>
+
     <div class="app">
       <header class="header">
         <div class="header-title-row">
-          <!-- Hibiscus flower -->
-          <svg class="hibiscus-icon" viewBox="0 0 48 48" width="38" height="38" aria-hidden="true">
-            <g transform="translate(24,24)">
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(0)"   opacity="0.95"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(72)"  opacity="0.9"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(144)" opacity="0.95"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff8c42" transform="rotate(216)" opacity="0.9"/>
-              <ellipse cx="0" cy="-13" rx="6.5" ry="10.5" fill="#ff6b6b" transform="rotate(288)" opacity="0.95"/>
-              <circle cx="0" cy="0" r="5.5" fill="#ffd166"/>
-              <line x1="0" y1="-2" x2="0" y2="-12" stroke="#fff8dc" stroke-width="1.8" stroke-linecap="round"/>
-              <circle cx="0" cy="-13.5" r="2" fill="#fff8dc"/>
+          <svg class="hibiscus-icon" viewBox="0 0 60 60" width="48" height="48" aria-hidden="true">
+            <g transform="translate(30,30)">
+              <ellipse cx="0" cy="-17" rx="8.5" ry="13" fill="#ff3d6b" transform="rotate(0)"   opacity="0.95"/>
+              <ellipse cx="0" cy="-17" rx="8.5" ry="13" fill="#ff7043" transform="rotate(72)"  opacity="0.9"/>
+              <ellipse cx="0" cy="-17" rx="8.5" ry="13" fill="#ff1744" transform="rotate(144)" opacity="0.95"/>
+              <ellipse cx="0" cy="-17" rx="8.5" ry="13" fill="#ff7043" transform="rotate(216)" opacity="0.9"/>
+              <ellipse cx="0" cy="-17" rx="8.5" ry="13" fill="#ff3d6b" transform="rotate(288)" opacity="0.95"/>
+              <circle cx="0" cy="0" r="7" fill="#ffd740"/>
+              <line x1="0" y1="-2" x2="0" y2="-15" stroke="#fffde7" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="0" cy="-17" r="2.5" fill="#fffde7"/>
             </g>
           </svg>
           <h1>Ukulele Tuner</h1>
         </div>
         <p class="subtitle">Aloha! Tune your ukulele right in the browser — no app or plugin needed.</p>
       </header>
+
+      <!-- Wave divider -->
+      <div class="wave-divider" aria-hidden="true">
+        <svg viewBox="0 0 440 28" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,14 C60,4 110,24 180,12 C240,2 300,22 360,10 C390,4 420,16 440,10 L440,28 L0,28 Z" fill="rgba(0,188,212,0.18)"/>
+          <path d="M0,18 C70,8 130,26 200,14 C260,4 320,22 380,12 C405,7 425,17 440,13 L440,28 L0,28 Z" fill="rgba(255,61,107,0.1)"/>
+        </svg>
+      </div>
 
       <section class="steps" aria-label="How to use">
         <h2 class="steps-title">How to use</h2>
