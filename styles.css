@@ -21,7 +21,9 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;      /* respects iOS dynamic viewport (address bar) */
+  min-height: 100vh;       /* fallback for older browsers */
+  overscroll-behavior-y: none; /* prevent iOS pull-to-refresh on the outer page */
   font-family: "DM Sans", system-ui, sans-serif;
   /* Tropical sunset sky fading into deep ocean */
   background:
@@ -127,6 +129,8 @@ body {
   border-radius: 0.65rem;
   padding: 0.85rem 1.2rem;
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  -webkit-tap-highlight-color: transparent; /* remove grey flash on iOS tap */
+  touch-action: manipulation;               /* eliminate 300ms tap delay */
 }
 
 .btn:active {
@@ -440,11 +444,14 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.4rem 0;
+  padding: 0.5rem 0;
+  min-height: 52px;          /* minimum iOS tap target */
   letter-spacing: 0.05em;
   text-transform: uppercase;
   transition: color 0.15s ease;
   font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .tab-btn svg {
@@ -460,7 +467,9 @@ body {
 /* ── Panel layout ────────────────────────────────────────────────────────── */
 
 .panel {
-  padding-bottom: 1rem;
+  /* Extra bottom padding ensures content scrolls clear of the sticky tab bar
+     (tab bar ≈ 60–70 px tall + safe-area-inset-bottom on notched phones). */
+  padding-bottom: 5.5rem;
 }
 
 .panel-title {
@@ -540,10 +549,12 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
+  flex-wrap: wrap;  /* wraps SVG above info on very narrow phones */
 }
 
 .chord-detail-info {
   flex: 1;
+  min-width: 140px; /* don't crush below this on narrow screens */
 }
 
 .chord-detail-name {
@@ -716,13 +727,16 @@ body {
   font: inherit;
   cursor: pointer;
   border-radius: 0.45rem;
-  padding: 0.45rem 0;
+  padding: 0.65rem 0;    /* taller for 44px minimum touch target */
+  min-height: 44px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--muted);
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.82rem;
   font-weight: 600;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .preset-btn:hover,
