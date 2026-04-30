@@ -176,14 +176,15 @@ function sizeCanvas(canvas) {
 // ── Chord practice ────────────────────────────────────────────────────────────
 
 let chordPractice = {
-  active:        false,
-  chordId:       null,
-  currentString: 0,
-  results:       [],   // { noteName, hz, detected, cents, pass }
-  advanceTimer:  null,
+  active:         false,
+  chordId:        null,
+  strumDirection: "down",  // "down" | "up" — instructed direction
+  armed:          true,    // ready to detect next strum onset
+  collecting:     false,   // in post-strum pitch-collection window
+  collectUntil:   0,       // performance.now() deadline
+  pitchSamples:   [],      // hz values captured after strum
+  lastResult:     null,    // { pass, score } | null
 };
-
-const STRING_LABELS = ["G", "C", "E", "A"];
 
 const CHORD_CATEGORIES = [
   { key: "essential", label: "Essential" },
@@ -274,73 +275,63 @@ function renderChordDetail(chord) {
   el.chordDetail.appendChild(practiceArea);
 }
 
+const CHORD_ONSET   = 0.045;
+const CHORD_RELEASE = 0.018;
+const COLLECT_MS    = 500;   // pitch window after strum onset
+
 function startChordPractice() {
   if (!audioContext) {
     const area = document.getElementById("practice-area");
     if (area) area.innerHTML = `<p class="hint" style="text-align:center">Start the microphone on the Tune tab first.</p>`;
     return;
   }
-  chordPractice.active        = true;
-  chordPractice.currentString = 0;
-  chordPractice.results       = [];
-  renderPracticeStatus();
+  chordPractice.active         = true;
+  chordPractice.armed          = true;
+  chordPractice.collecting     = false;
+  chordPractice.pitchSamples   = [];
+  chordPractice.lastResult     = null;
+  chordPractice.strumDirection = "down";
+  renderStrumUI();
 }
 
 function stopChordPractice() {
-  chordPractice.active = false;
-  clearTimeout(chordPractice.advanceTimer);
+  chordPractice.active     = false;
+  chordPractice.collecting = false;
 }
 
-function advanceString() {
-  chordPractice.currentString++;
-  if (chordPractice.currentString >= 4) {
-    chordPractice.active = false;
-    showPracticeResult();
-  } else {
-    // Skip muted strings automatically
-    const notes = chordStringNotes(
-      CHORD_DATA.find(c => c.id === chordPractice.chordId),
-      el.lowG.checked
-    );
-    if (notes[chordPractice.currentString].muted) {
-      chordPractice.results[chordPractice.currentString] = { muted: true };
-      advanceString();
-    } else {
-      renderPracticeStatus();
-    }
-  }
-}
-
-function renderPracticeStatus() {
+function renderStrumUI() {
   const area = document.getElementById("practice-area");
   if (!area) return;
-  const chord  = CHORD_DATA.find(c => c.id === chordPractice.chordId);
-  const notes  = chordStringNotes(chord, el.lowG.checked);
-  const cur    = chordPractice.currentString;
 
-  const dotsHtml = STRING_LABELS.map((lbl, i) => {
-    const result = chordPractice.results[i];
-    let cls = "string-dot";
-    if (result?.muted) cls += " muted";
-    else if (result?.pass === true)  cls += " pass";
-    else if (result?.pass === false) cls += " fail";
-    else if (i === cur && chordPractice.active) cls += " active";
-    return `<div class="string-dot-wrap"><div class="${cls}"></div>${lbl}</div>`;
-  }).join("");
+  const dir   = chordPractice.strumDirection;
+  const arrow = dir === "down" ? "↓" : "↑";
+  const label = dir === "down" ? "Strum Down" : "Strum Up";
 
-  const target  = notes[cur];
-  const instrTxt = chordPractice.active && !target?.muted
-    ? `Pluck the <strong>${STRING_LABELS[cur]} string</strong>`
-    : "";
-  const expTxt = target && !target.muted
-    ? `Expected: ${target.noteName} (${target.hz.toFixed(1)} Hz)`
-    : "";
+  const result = chordPractice.lastResult;
+  let feedbackHtml = `<p class="strum-waiting">Waiting for strum…</p>`;
+  if (result) {
+    const pct  = Math.round(result.score * 100);
+    const pass = result.pass;
+    feedbackHtml = `
+      <div class="strum-result ${pass ? "pass" : "fail"}">
+        <span class="strum-result-icon">${pass ? "✓" : "✗"}</span>
+        <span>${pass ? "Sounds good!" : "Check your fingering"}</span>
+      </div>
+      <div class="strum-score-bar">
+        <div class="strum-score-fill" style="width:${pct}%;background:${pass ? "var(--in-tune)" : "var(--flat-color)"}"></div>
+      </div>
+      <p class="strum-score-label">${pct}% of notes matched</p>
+    `;
+  }
 
   area.innerHTML = `
-    <div class="string-dots-row">${dotsHtml}</div>
-    <p class="practice-instruction">${instrTxt}</p>
-    <p class="practice-feedback">${expTxt}</p>
-    <button type="button" class="btn btn-secondary" id="stop-practice-btn" style="margin-top:0.6rem;font-size:0.82rem;padding:0.5rem 0.9rem">
+    <div class="strum-cue">
+      <span class="strum-arrow">${arrow}</span>
+      <span class="strum-label">${label}</span>
+    </div>
+    <div class="strum-feedback">${feedbackHtml}</div>
+    <button type="button" class="btn btn-secondary" id="stop-practice-btn"
+      style="margin-top:0.75rem;font-size:0.82rem;padding:0.5rem 0.9rem;width:100%">
       Stop
     </button>
   `;
@@ -350,77 +341,49 @@ function renderPracticeStatus() {
   });
 }
 
-function updatePracticeFeedback(detected, cents, pass) {
-  const fb = document.querySelector(".practice-feedback");
-  if (!fb) return;
-  const chord = CHORD_DATA.find(c => c.id === chordPractice.chordId);
-  const notes = chordStringNotes(chord, el.lowG.checked);
-  const target = notes[chordPractice.currentString];
-  const sign = cents > 0 ? "sharp" : "flat";
-  fb.textContent = pass
-    ? `${target.noteName} ✓`
-    : `Detected ${detected} — ${Math.abs(Math.round(cents))}¢ ${sign}`;
-  fb.style.color = pass ? "var(--in-tune)" : "var(--flat-color)";
+function evaluateStrum() {
+  const chord   = CHORD_DATA.find(c => c.id === chordPractice.chordId);
+  const notes   = chordStringNotes(chord, el.lowG.checked).filter(n => !n.muted);
+  const samples = chordPractice.pitchSamples.filter(h => h != null);
+  if (samples.length < 3) return { pass: false, score: 0 };
+
+  let matches = 0;
+  for (const hz of samples) {
+    const closestCents = Math.min(...notes.map(n => Math.abs(centsBetween(hz, n.hz))));
+    if (closestCents <= 60) matches++;
+  }
+  const score = matches / samples.length;
+  return { pass: score >= 0.5, score };
 }
 
-function showPracticeResult() {
-  const area = document.getElementById("practice-area");
-  if (!area) return;
-  const chord = CHORD_DATA.find(c => c.id === chordPractice.chordId);
-  const notes = chordStringNotes(chord, el.lowG.checked);
-  const passed = chordPractice.results.filter(r => r?.pass).length;
-  const total  = chordPractice.results.filter(r => !r?.muted).length;
-
-  const rows = STRING_LABELS.map((lbl, i) => {
-    const r = chordPractice.results[i];
-    if (!r || r.muted) return `<div class="practice-result-row"><span>${lbl}</span><span style="color:var(--muted)">muted</span></div>`;
-    const icon = r.pass ? "✓" : "✗";
-    const col  = r.pass ? "var(--in-tune)" : "var(--flat-color)";
-    const exp  = notes[i].noteName;
-    return `<div class="practice-result-row"><span>${lbl} — ${exp}</span><span style="color:${col}">${icon}</span></div>`;
-  }).join("");
-
-  area.innerHTML = `
-    <div class="practice-result">
-      <p style="margin:0 0 0.5rem;font-weight:700">${passed}/${total} strings in tune</p>
-      ${rows}
-    </div>
-    <button type="button" class="btn btn-secondary" id="retry-btn" style="margin-top:0.75rem;width:100%">
-      Try again
-    </button>
-  `;
-  document.getElementById("retry-btn")?.addEventListener("click", startChordPractice);
-}
-
-function chordFrame(hz, rms, clarity) {
+function chordFrame(hz, rms, clarity, now) {
   if (!chordPractice.active || !chordPractice.chordId) return;
-  const chord  = CHORD_DATA.find(c => c.id === chordPractice.chordId);
-  const notes  = chordStringNotes(chord, el.lowG.checked);
-  const target = notes[chordPractice.currentString];
 
-  if (!target || target.muted) { advanceString(); return; }
-  if (!hz || clarity < 0.88 || rms < 0.015) return;
-
-  const cents = centsBetween(hz, target.hz);
-  const pass  = Math.abs(cents) <= 25;
-  const { name, octave } = midiToNoteName(hzToMidi(hz));
-  const detected = `${name}${octave}`;
-
-  chordPractice.results[chordPractice.currentString] = {
-    noteName: target.noteName, hz: target.hz, detected, cents, pass,
-  };
-
-  updatePracticeFeedback(detected, cents, pass);
-
-  // Update the active dot
-  const dots = document.querySelectorAll(".string-dot");
-  if (dots[chordPractice.currentString]) {
-    dots[chordPractice.currentString].className = `string-dot ${pass ? "pass" : "fail"}`;
+  // ── collection window: gather pitches after strum onset ───────────────────
+  if (chordPractice.collecting) {
+    if (now < chordPractice.collectUntil) {
+      if (hz && clarity > 0.6) chordPractice.pitchSamples.push(hz);
+    } else {
+      // window closed — evaluate
+      chordPractice.collecting     = false;
+      chordPractice.lastResult     = evaluateStrum();
+      chordPractice.strumDirection = chordPractice.strumDirection === "down" ? "up" : "down";
+      renderStrumUI();
+    }
+    return;
   }
 
-  if (pass) {
-    clearTimeout(chordPractice.advanceTimer);
-    chordPractice.advanceTimer = setTimeout(advanceString, 650);
+  // ── re-arm on release ─────────────────────────────────────────────────────
+  if (!chordPractice.armed && rms < CHORD_RELEASE) {
+    chordPractice.armed = true;
+  }
+
+  // ── detect strum onset ────────────────────────────────────────────────────
+  if (chordPractice.armed && rms >= CHORD_ONSET) {
+    chordPractice.armed        = false;
+    chordPractice.collecting   = true;
+    chordPractice.collectUntil = now + COLLECT_MS;
+    chordPractice.pitchSamples = [];
   }
 }
 
@@ -902,7 +865,7 @@ function tick() {
   tunerFrame(hz, rms, clarity, now);
   if (activePanel === "panel-rhythm") rhythmFrame(rms, now);
   if (recIsRecording) recordFrame(hz, rms, now);
-  if (chordPractice.active) chordFrame(hz, rms, clarity);
+  if (chordPractice.active) chordFrame(hz, rms, clarity, now);
 
   rafId = requestAnimationFrame(tick);
 }
