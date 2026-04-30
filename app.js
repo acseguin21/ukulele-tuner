@@ -182,6 +182,7 @@ let chordPractice = {
   armed:          true,    // ready to detect next strum onset
   collecting:     false,   // in post-strum pitch-collection window
   collectUntil:   0,       // performance.now() deadline
+  cooldownUntil:  0,       // performance.now() — don't re-arm until after this
   pitchSamples:   [],      // hz values captured after strum
   lastResult:     null,    // { pass, score } | null
 };
@@ -275,9 +276,11 @@ function renderChordDetail(chord) {
   el.chordDetail.appendChild(practiceArea);
 }
 
-const CHORD_ONSET   = 0.045;
-const CHORD_RELEASE = 0.018;
-const COLLECT_MS    = 500;   // pitch window after strum onset
+const CHORD_ONSET      = 0.032;   // lower than rhythm trainer — catches softer strums
+const CHORD_RELEASE    = 0.014;
+const COLLECT_MS       = 800;    // longer window to capture the full chord ring
+const CHORD_COOLDOWN   = 1200;   // ms after collection ends before re-arming
+const MIN_COLLECT_RMS  = 0.012;  // ignore near-silent frames during collection
 
 function startChordPractice() {
   if (!audioContext) {
@@ -329,6 +332,22 @@ function renderStrumUI() {
       <span class="strum-arrow">${arrow}</span>
       <span class="strum-label">${label}</span>
     </div>
+    <div class="live-meter" id="live-meter">
+      <div class="live-note-row">
+        <span class="live-note-name mono" id="live-note-name">—</span>
+        <span class="live-nearest" id="live-nearest">nearest: —</span>
+        <span class="live-cents mono" id="live-cents"></span>
+      </div>
+      <div class="live-needle-track">
+        <div class="live-needle-center"></div>
+        <div class="live-needle-bar" id="live-needle-bar"></div>
+      </div>
+      <div class="live-needle-labels">
+        <span style="color:var(--flat-color)">flat</span>
+        <span>in tune</span>
+        <span style="color:var(--sharp-color)">sharp</span>
+      </div>
+    </div>
     <div class="strum-feedback">${feedbackHtml}</div>
     <button type="button" class="btn btn-secondary" id="stop-practice-btn"
       style="margin-top:0.75rem;font-size:0.82rem;padding:0.5rem 0.9rem;width:100%">
@@ -339,6 +358,50 @@ function renderStrumUI() {
     stopChordPractice();
     area.innerHTML = "";
   });
+}
+
+function updateLiveMeter(hz, clarity) {
+  const noteName = document.getElementById("live-note-name");
+  const nearest  = document.getElementById("live-nearest");
+  const centsEl  = document.getElementById("live-cents");
+  const bar      = document.getElementById("live-needle-bar");
+  if (!noteName || !bar) return;
+
+  if (!hz || clarity < 0.55) {
+    noteName.textContent = "—";
+    nearest.textContent  = "nearest: —";
+    centsEl.textContent  = "";
+    bar.style.left       = "50%";
+    bar.style.background = "var(--muted)";
+    return;
+  }
+
+  const chord = CHORD_DATA.find(c => c.id === chordPractice.chordId);
+  const notes = chordStringNotes(chord, el.lowG.checked).filter(n => !n.muted);
+
+  // Find nearest chord tone
+  let bestNote = null, bestCents = Infinity;
+  for (const n of notes) {
+    const c = centsBetween(hz, n.hz);
+    if (Math.abs(c) < Math.abs(bestCents)) { bestCents = c; bestNote = n; }
+  }
+
+  const { name, octave } = midiToNoteName(hzToMidi(hz));
+  noteName.textContent = `${name}${octave}`;
+  nearest.textContent  = `nearest: ${bestNote?.noteName ?? "—"}`;
+
+  const absCents = Math.round(Math.abs(bestCents));
+  const sign     = bestCents > 0 ? "+" : bestCents < 0 ? "−" : "";
+  centsEl.textContent = `${sign}${absCents}¢`;
+
+  // Position: ±100¢ maps to 0–100% of the track
+  const pct   = Math.max(0, Math.min(100, 50 + (bestCents / 100) * 50));
+  const color = absCents <= 20 ? "var(--in-tune)"
+              : absCents <= 50 ? "var(--warm)"
+              : "var(--flat-color)";
+  bar.style.left       = `${pct}%`;
+  bar.style.background = color;
+  centsEl.style.color  = color;
 }
 
 function evaluateStrum() {
@@ -359,19 +422,24 @@ function evaluateStrum() {
 function chordFrame(hz, rms, clarity, now) {
   if (!chordPractice.active || !chordPractice.chordId) return;
 
+  updateLiveMeter(hz, clarity);
+
   // ── collection window: gather pitches after strum onset ───────────────────
   if (chordPractice.collecting) {
     if (now < chordPractice.collectUntil) {
-      if (hz && clarity > 0.6) chordPractice.pitchSamples.push(hz);
+      if (hz && clarity > 0.6 && rms >= MIN_COLLECT_RMS) chordPractice.pitchSamples.push(hz);
     } else {
-      // window closed — evaluate
-      chordPractice.collecting     = false;
-      chordPractice.lastResult     = evaluateStrum();
+      chordPractice.collecting    = false;
+      chordPractice.cooldownUntil = now + CHORD_COOLDOWN;
+      chordPractice.lastResult    = evaluateStrum();
       chordPractice.strumDirection = chordPractice.strumDirection === "down" ? "up" : "down";
       renderStrumUI();
     }
     return;
   }
+
+  // ── cooldown: wait before re-arming so decay doesn't retrigger ───────────
+  if (now < chordPractice.cooldownUntil) return;
 
   // ── re-arm on release ─────────────────────────────────────────────────────
   if (!chordPractice.armed && rms < CHORD_RELEASE) {

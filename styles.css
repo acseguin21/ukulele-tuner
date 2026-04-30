@@ -725,6 +725,79 @@ body {
   min-height: 4rem;
 }
 
+.live-meter {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 200, 150, 0.1);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem 0.55rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.live-note-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.live-note-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  min-width: 2.8rem;
+}
+
+.live-nearest {
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex: 1;
+}
+
+.live-cents {
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.live-needle-track {
+  position: relative;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.live-needle-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(-50%);
+}
+
+.live-needle-bar {
+  position: absolute;
+  width: 6px;
+  height: 100%;
+  border-radius: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--muted);
+  transition: left 0.07s ease-out, background 0.1s;
+}
+
+.live-needle-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* ── Rhythm trainer ──────────────────────────────────────────────────────── */
 
 .rhythm-stats-row {
